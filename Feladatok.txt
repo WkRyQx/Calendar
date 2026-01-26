@@ -25,3 +25,13 @@ statisztika - Dani
 tobbfelhasznalos esemeny - David
 
 csoportokra szedes - Laci
+
+ütközés kezelés (eseményre esemény létrehozás) - Laci
+
+reszponzivitás - David
+
+ismétlődő események engedélyezése - David
+
+emlékeztető küldés - Dani
+
+drag & drop - Laci
