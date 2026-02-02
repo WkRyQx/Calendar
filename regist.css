@@ -1,0 +1,67 @@
+*{
+margin-left: auto;
+margin-right: auto;
+padding: 0;
+box-sizing: border-box;
+}
+
+.registration {
+    margin-top: 250px;
+    position: relative;
+    border: 2px solid black;
+    border-radius: 15px;
+    width: 200px;
+    height: 200px;
+    padding-top: 5px;
+    padding-left: 5px;
+    justify-content: center;
+
+}
+
+#input {
+    margin-left: 10px;
+    padding-bottom: 5px;
+}
+
+#bejGomb {
+    color: white !important;
+    background-color: black;
+        border: 1px solid black;
+    border-radius: 2px;
+}
+
+#bejGomb2 {
+    color: black !important;
+    background-color: white;
+        border: 1px solid black;
+    border-radius: 2px;
+}
+
+#regGomb {
+    color: black !important;
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 2px;
+}
+
+#regGomb2 {
+    color: white !important;
+    background-color: black;
+    border: 1px solid black;
+    border-radius: 2px;
+}
+
+.gombok_regist {
+    margin-top: 80px;
+    margin-left: 12px;
+}
+
+.gombok_login {
+    margin-top: 100px;
+    margin-left: 12px;
+}
+
+a {
+    text-decoration: none;
+    color: unset;
+}
