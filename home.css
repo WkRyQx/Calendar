@@ -205,7 +205,7 @@ body{
   transform: translateX(-100%);
 }
 
-#menuBtn , #closeSidebarBtn{
+#menuBtn , #closeSidebarBtn ,#ujBtn{
     border: none;
     padding: 4px;
     font-size: x-large;
@@ -216,4 +216,17 @@ body{
 
 #menuBtn:hover , #closeSidebarBtn:hover {
     background: lightgray;
+}
+
+
+#letrehozas {
+    top: 100px;
+    right: 50px;
+    font-size: 32px;
+    border: 1px solid black;
+    border-radius: 5px;
+    background-color: white;
+    color: black;
+    cursor: pointer;
+    margin-bottom: 20px;
 }

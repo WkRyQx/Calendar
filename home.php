@@ -41,6 +41,8 @@ $error = "";
 
 
 <button id="menuBtn" type="button"><i class="fa-solid fa-bars"></i></button>
+<button id="ujBtn" type="button"><i class="fa-solid fa-plus"></i></button>
+
 
 <form method="Post" action="kijelentkezes.php" class="kijelentkezes">
     <div>
@@ -48,11 +50,10 @@ $error = "";
     </div>
 </form>
 
-<div id="overlay"></div>
 
 <div id="sidebar">
     <button id="closeSidebarBtn" type="button"><i class="fa-solid fa-bars"></i></button>
-    <button type="button"><i class="fa-solid fa-plus"></i>Létrehozás</button>
+    <button id="letrehozas" type="button"><i class="fa-solid fa-plus"></i>Létrehozás</button>
 
     <div class="calendar">
         <div class="weekdays">
