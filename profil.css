@@ -1,0 +1,67 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: rgb(233, 236, 238);
+}
+
+.menupont {
+  font-size: 0.9rem;
+  width: 280px;
+  display: flex;
+}
+#navdiv {
+  float: left;
+  width: 300px;
+  height: 493px;
+  padding-left: 10px;
+}
+#nav {
+  width: 223px;
+  height: 493px;
+  align-items: baseline;
+}
+#cimsor {
+  height: 80px;
+}
+#cim {
+  height: 48px;
+  width: 500px;
+  padding-left: 10px;
+  align-content: center;
+  font-size: 200%;
+}
+.menupontDiv {
+  display: flex;
+  background-color: white;
+  align-items: center;
+  width: 120px;
+  height: 50px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 50px;
+  
+}
+
+.menupontSpan {
+  float: right;
+}
+
+span {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+a {
+  height: 50px;
+  text-decoration: none;
+  color: black;
+}
+
+.icon {
+  height: 20px;
+  width: 20px;
+  float: left;
+  padding-right: 5px;
+}
+.menupontDiv:hover{
+  background-color: darkgrey;
+}

@@ -50,6 +50,12 @@ $error = "";
     </div>
 </form>
 
+<form method="get" action="profil.php">
+    <div>
+        <button>Fiók</button>
+    </div>
+</form>
+
 
 <div id="sidebar">
     <button id="closeSidebarBtn" type="button"><i class="fa-solid fa-bars"></i></button>
