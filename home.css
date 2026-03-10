@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* ================= GLOBAL ================= */
 * {
     box-sizing: border-box;
@@ -1102,3 +1103,683 @@ html, body {
     z-index: 999;
 }
 
+=======
+body{
+    min-height: 100vh;
+    min-width: 100vw;
+    margin: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+
+
+/* Naptar */
+
+.calendar {
+    background: white;
+    padding: 20px;
+    width:  90%;
+    color: black;
+}
+
+/* Fejlec */
+.calendar h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.calendar h2 a {
+    text-decoration: none;
+    color: black;
+    font-size: 20px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    transition: 0.2s;
+}
+
+.calendar h2 a:hover {
+    background: lightgray;
+    color: black;
+}
+
+/* Napok */
+
+.weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 12px;
+    color: black;
+    margin-bottom: 8px;
+}
+
+/* Napok rács */
+.days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+/* Nap cella */
+.day {
+    text-align: center;
+    padding: 10px 0;
+    border-radius: 100%;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.day:hover {
+    background: lightgray;
+}
+
+/* Masik honap */
+.muted {
+    color: rgb(185, 176, 176);
+}
+
+/* Mai nap */
+.today {
+    background: rgb(44, 44, 248);
+    color: white;
+    font-weight: bold;
+}
+
+/* Kivalasztott nap */
+.selected {
+    background: #8ab4f8;
+    color: #000;
+    font-weight: bold;
+}
+
+
+
+
+.day-view {
+    float: right;
+    height: 725px;
+    overflow-y:auto;
+    width: 1025px;
+    margin-right: 15px;
+    border: #000 solid 1px;
+    border-radius: 10px;
+    padding-right: 10px;
+    padding-bottom: none;
+    box-sizing: border-box;
+}
+
+.time-column {
+    float: left;
+    width:75px;
+    border-right:1px solid #2a2e35;
+}
+
+.time-slot {
+    height:60px;
+    font-size:12px;
+    color:#9aa0a6;
+    text-align:right;
+    padding-right:10px;
+    padding-top:5px;
+}
+
+.calendar-grid {
+    flex:1;
+    position:relative;
+    min-width: 0;
+    width: 80%;
+}
+
+.hour-line {
+    height:60px;
+    border-bottom:1px solid #2a2e35;
+    width: 1005px;
+}
+
+
+.event {
+    position:absolute;
+    padding:6px;
+    border-radius:6px;
+    font-size:13px;
+    color:white;
+    box-sizing:border-box;
+}
+
+.current-time {
+    position:absolute;
+    left:0;
+    right:0;
+    height:2px;
+    background:red;
+    width: 1005px;
+    z-index:5;
+}
+
+.current-time::before {
+    content:"";
+    position:absolute;
+    left:-6px;
+    top:-4px;
+    width:10px;
+    height:10px;
+    background:red;
+    border-radius:50%;
+}
+
+/* Reszponzív */
+@media(max-width:768px){
+    .time-column{width:50px;}
+    .time-slot{font-size:10px;}
+    .event{font-size:11px;padding:3px;}
+}
+
+
+
+
+#menuBtn {
+  font-size: 26px;
+  margin: 10px;
+  cursor: pointer;
+}
+
+/* SIDEBAR */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: white;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+  padding: 20px;
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+#sidebar.open {
+  transform: translateX(0);
+}
+
+#sidebar.close {
+  transform: translateX(-100%);
+}
+
+#menuBtn , #closeSidebarBtn ,#ujBtn{
+    border: none;
+    padding: 4px;
+    font-size: x-large;
+    border-radius: 100%;
+    background: none;
+    color: black;
+}
+
+#menuBtn:hover , #closeSidebarBtn:hover {
+    background: lightgray;
+}
+
+
+#letrehozas {
+    top: 100px;
+    right: 50px;
+    font-size: 32px;
+    border: 1px solid black;
+    border-radius: 5px;
+    background-color: white;
+    color: black;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.overlay {
+    display: none; 
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.2); 
+    z-index: 1000;
+}
+
+.modal-content {
+    position: absolute;
+    top: 100px; left: 50px; 
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    width: 300px;
+}/* ================= GLOBAL ================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+
+/* ================= SIDEBAR ================= */
+
+#sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    /* let width grow to accommodate long month names instead of wrapping lines */
+    width: auto;
+    /* wider sidebar to give mini-calendar and controls more breathing room */
+    min-width: 350px;
+    max-width: 600px; /* still constrain so it doesn’t dominate extremely wide screens */
+    height: 100vh;
+    background: white;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+    padding: 20px;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    overflow: visible;
+}
+
+#sidebar.close {
+    transform: translateX(-100%);
+}
+
+/* ================= MAIN CONTENT ================= */
+
+.main-content {
+    margin-left: 280px;
+    padding: 20px;
+    width: calc(100% - 280px);
+    /* make main content take full vertical space so child views can fill it */
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ================= VIEW SWITCH ================= */
+
+.view-switch {
+    margin-bottom: 20px;
+}
+
+#viewSelect {
+    padding: 8px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+
+/* ================= VIEW CONTAINER ================= */
+
+.calendar-view {
+    display: none;
+    width: 100%;
+    max-width: 1100px;
+    height: 100%;
+}
+
+#dayView {
+    display: block;
+}
+
+/* ================= DAY VIEW ================= */
+
+#dayView h2 {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+}
+
+.day-view {
+    display: flex;
+    align-items: flex-start; /* keep children tall to fit full 24h content */
+    border: 1px solid #000;
+    border-radius: 10px;
+    /* fill remaining vertical space; allow the container to size via flex/viewport */
+    height: calc(100vh - 200px); /* adjust offset to account for headers/margins */
+    max-height: none;
+    overflow-y: auto; /* allow scrolling vertically */
+}
+
+/* Time column */
+
+.time-column {
+    width: 70px;
+    border-right: 1px solid #ccc;
+}
+
+.time-slot {
+    height: 60px;
+    font-size: 12px;
+    display: flex;
+    align-items: center; /* center vertically by default */
+    justify-content: flex-end;
+    padding-right: 8px;
+    color: #666;
+}
+
+/* hide the 00:00 label but keep slot height */
+.time-slot:first-child span {
+    visibility: hidden;
+}
+
+/* shift every slot except the first up by half a slot */
+.time-slot:nth-child(n+2) span {
+    display: inline-block;
+    margin-top: -62px;
+    color: #666;
+}
+
+/* Grid */
+
+.calendar-grid {
+    position: relative;
+    flex: 1;
+}
+
+.hour-line {
+    height: 60px;
+    border-bottom: 1px solid #e0e0e0;
+    width: 100%;
+}
+
+/* Event */
+
+.event {
+    position: absolute;
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: white;
+}
+
+/* Current time */
+
+.current-time {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: red;
+    z-index: 5;
+}
+
+.current-time::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: -4px;
+    width: 10px;
+    height: 10px;
+    background: red;
+    border-radius: 50%;
+}
+
+/* ================= WEEK VIEW ================= */
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.week-day {
+    border: 1px solid #ccc;
+    /* let each day stretch to fill the view height */
+    min-height: calc(100vh - 250px);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.week-day-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.week-event {
+    padding: 5px;
+    margin-bottom: 5px;
+    color: white;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+/* ================= MONTH VIEW ================= */
+
+.month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.month-day {
+    border: 1px solid #ccc;
+    /* allow month cells to grow, removing arbitrary minimum */
+    min-height: calc(100vh - 250px);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.month-day-number {
+    font-weight: normal; /* no decoration on numbers */
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.week-day-num {
+    font-weight: normal;
+    font-size: 12px;
+}
+
+.month-event {
+    padding: 3px;
+    font-size: 11px;
+    color: white;
+    border-radius: 3px;
+    margin-bottom: 2px;
+}
+
+.empty {
+    background: #f5f5f5;
+}
+
+/* a más hónapból származó napokat halványabbá tesszük */
+.month-day.other-month {
+    background: #f0f0f0;
+    color: #777;
+}
+
+/* highlight only the number for today in week/month views; cell background for mini calendar */
+.days .day.today {
+    background: rgb(44, 44, 248);
+    border-radius: 100%;
+    color: white;
+    font-weight: bold;
+}
+
+.week-day-num.today,
+.month-day-number.today { 
+    background: rgb(44, 44, 248);
+    color: white;
+    font-weight: bold;
+    border-radius: 100%;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+}
+
+/* selected date in mini calendar (different from today) */
+.days .day.selected {
+    border: 2px solid rgb(44, 44, 248);
+}
+
+.days .day.today.selected {
+    border: 2px solid rgb(44, 44, 248);
+}
+
+/* remove generic today background from cells */
+.day.today { background: none; color: inherit; }
+.week-day.today { background: none; }
+.month-day.today { background: none; }
+
+/* ================= MINI CALENDAR ================= */
+
+.calendar {
+    background: white;
+    padding: 20px;
+    /* fill entire sidebar width and avoid shrinking too far */
+    width: 100%;
+    min-width: 300px; /* ensure a reasonable minimum calendar size */
+}
+
+.calendar h2 {
+    display: flex;
+    justify-content: space-between; /* eleje és vége a két szélre */
+    align-items: center;
+    width: 100%;
+    white-space: nowrap;
+}
+
+.weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.day {
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 100%;
+    cursor: pointer;
+}
+
+.day:hover {
+    background: lightgray;
+}
+
+.muted {
+    color: #aaa;
+}
+
+.today {
+    background: rgb(44, 44, 248);
+    color: white;
+    font-weight: bold;
+}
+
+/* ================= CREATE DROPDOWN ================= */
+
+.dropdown{
+    position: relative;
+    width: 100%;
+    height: 40px;
+    margin-bottom: 0px;}
+
+.dropdown::before {
+    content: "";
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    z-index: 100;
+    pointer-events: none;
+}
+
+
+.dropdown input {
+    position: relative;
+    z-index: 1; 
+    height: 50px;
+    width: 100%;
+    cursor: pointer;
+    font-size: 12px;
+    background: #fff;
+    color: #000;
+    padding: 0 50px 0 50px;  
+    border: 1px solid black;
+    border-radius: 30px;
+    outline: none;
+    transition: .2s ease;
+    margin-bottom: 0; 
+    box-shadow: none;  
+}
+
+
+.dropdown .option{
+    position: absolute;
+    top: 50px;
+    width: 100%;
+    background: #fff;
+    box-shadow: 0 30px 30px rgba(0, 0, 0, 0.05);
+    border-radius: 30px;
+    overflow: hidden;
+    display: none;
+    z-index: 999; 
+}
+
+
+.dropdown.active .option{
+    display: block;
+}
+
+.dropdown .option div {
+    padding: 12px 20px;  
+    cursor: pointer;
+    border-bottom: 1px solid #eee;  
+}
+
+.dropdown .option div:last-child {
+    border-bottom: none;
+}
+
+.dropdown i {
+    position: relative;
+    right: 20px;
+    top: 50%;
+    font-size: 12px;
+    color: #000;
+}
+
+/* Háttér sötétítés */
+.custom-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 9999; /* Legyen minden felett */
+}
+
+/* Maga a kis ablak */
+.modal-content {
+    position: absolute;
+    top: 150px;
+    left: 280px; /* A sidebar mellett jelenjen meg */
+    background: white;
+    width: 350px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 15px;
+}
+
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.close-modal { background: none; border: none; font-size: 24px; cursor: pointer; }
+.modal-body input { width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+.save-btn { float: right; background: #1a73e8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+>>>>>>> 9159788e40b56fd3cfd19de9a39ba4ff035cea68
