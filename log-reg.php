@@ -62,101 +62,132 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="main.css">
     <title>Calendar</title>
     <style>
-        *{
-            margin-left: auto;
-            margin-right: auto;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+    }
+    
+    body{
+        height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+    }
 
-        .registration {
-            margin-top: 205px;
-            position: relative;
-            border: 2px solid black;
-            border-radius: 20px;
-            width: 370px;
-            height: 370px;
-            padding-top: 5px;
-            padding-left: 5px;
-            justify-content: center;
+    .registration{
+        position:absolute;
+        border:2px solid black;
+        width:370px;
+        height:370px;
+        padding-top:5px;
+        padding-left:5px;    
+        justify-content: center;
+        overflow: hidden;
+        border-radius:20px;
+    }
 
-        }
+    #input {
+        margin-left: 10px;
+        padding-bottom: 5px;
+    }
 
-        #input {
-            margin-left: 10px;
-            padding-bottom: 5px;
-        }
+    #bejGomb, #bejGomb2 {
+        color: black;
+        background-color: white;
+        border: 1px solid black;
+        border-radius: 20px;
+        height: 40px;
+        width: 130px;
+    }
+    #regGomb, #regGomb2 {
+        color: black ;
+        background-color: white;
+        border: 1px solid black;
+        border-radius: 20px;
+        height: 40px;
+        width: 130px;
+    }
 
-        #bejGomb {
-            color: white !important;
-            background-color: black;
-            border: 1px solid black;
-            border-radius: 15px;
-            height: 40px;
-            width: 130px;
-        }
+    #regGomb:hover, #bejGomb:hover ,  #regGomb2:hover, #bejGomb2:hover{
+        background-color: black;
+        color: white;
+        border: 1px solid black;
+    }
 
-        #bejGomb2 {
-            color: black !important;
-            background-color: white;
-            border: 1px solid black;
-            border-radius: 15px;
-            height: 40px;
-            width: 130px;
-        }
+    .gombok_regist {
+        margin-top: 30px;
+        margin-left: 44px;
+    }
+    .gombok_login {
+        margin-top: 75px;
+        margin-left: 44px;
+    }
+    a {
+        text-decoration: none;
+        color: unset;
+    }
 
-        #regGomb {
-            color: black !important;
-            background-color: white;
-            border: 1px solid black;
-            border-radius: 15px;
-            height: 40px;
-            width: 130px;
-        }
+    .input_text {
+        border: 2px solid black;
+        border-radius: 20px;
+        height: 45px;
+        width: 330px;
+        padding: 10px;
+        margin-top: 5px;
 
-        #regGomb2 {
-            color: white !important;
-            background-color: black;
-            border: 1px solid black;
-            border-radius: 15px;
-            height: 40px;
-            width: 130px;
-        }
+    }
+    .submit_gomb {
+        background-color: white;
+        margin-top: 10px;
+        height: 45px;
+        width: 330px;
+        padding: 10px;
+        border-radius: 20px;
+        margin-left: 10px;
+    }
 
-        .gombok_regist {
-            margin-top: 145px;
-            margin-left: 44px;
-        }
+    .submit_gomb:hover {
+        background-color: black;
+        color: white;
+        border: 1px solid black;
+    }
 
-        .gombok_login {
-            margin-top: 191px;
-            margin-left: 44px;
-        }
+    .registration form{
+        position: relative;
+        transition: 0.4s;
+    }
 
-        a {
-            text-decoration: none;
-            color: unset;
-        }
+    #login{
+        left:0;
+        transition:left 0.5s ease;
+    }
 
-        .input_text {
-            border: 2px solid black;
-            border-radius: 15px;
-            height: 45px;
-            width: 330px;
-            padding: 1px;
-            margin: 1px;
-        }
+    #register{
+        left:370px;
+        transition:left 0.5s ease;
+    }
+        
+    .container{
+       position:relative;
+       width:370px;
+       height:370px;
+       overflow: hidden;
+    }
 
-        .submit_gomb {
-            background-color: rgb(213, 213, 213);
-            border: 2px solid black;
-            border-radius: 8px;
-            margin-left: 250px;
-            height: 20px;
-            width: 100px;
-        }
+    .wrapper{
+        border-radius:20px;
+        box-shadow:0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    h2{
+        text-align: center;
+        margin-bottom: 10px;
+        margin-top: 20px;
+    }
     </style>
 </head>
 <body>
@@ -169,26 +200,26 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
     <div class="msg error"><?= $error ?></div>
 <?php endif; ?>
 
-    <div class="registration">
-        <div>
+<div class="wrapper">
+    <div class="container">
+        <div class="registration" id="login">
+            <h2>Bejelentkezés</h2>
             <form method="post">
                 <div id="input">
                     <input type="hidden" name="action" value="login">
                     <input class="input_text" type="text" placeholder="Email: " name="emaillog">
                     <input class="input_text" type="password" placeholder="Jelszó: " name="jelszolog">
                 </div>
-                <button class="submit_gomb" type="submit" name="actio">Bejelentkezés</button>
+                    <button class="submit_gomb" type="submit" name="actio">Bejelentkezés</button>
             </form>   
+            <div class="gombok_login">
+                <button type="button" id="bejGomb" onclick="login()">Bejelentkezés</button>
+                <button type="button" id="regGomb" onclick="register()">Regisztráció</button>
+            </div>
         </div>
-        <div class="gombok_login">
-            <button type="button" id="bejGomb2"><a href="login.php">Bejelentkezés</a></button>
-            <button type="button" id="regGomb2"><a href="registration.php">Regisztráció</a></button>
-        </div>
-    </div>
 
-    
-    <div class="registration">
-        <div>
+        <div class="registration" id="register">
+            <h2>Regisztráció</h2>
             <form method="post">
                 <div id="input">
                     <input type="hidden" name="action" value="register">
@@ -196,22 +227,31 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
                     <input class="input_text" type="text" placeholder="Felhasználónév: " name="nev">
                     <input class="input_text" type="password" placeholder="Jelszó: " name="jelszo">
                 </div>
-                <button class="submit_gomb" type="submit" name="actio">Regisztráció</button>
+                    <button class="submit_gomb" type="submit" name="actio">Regisztráció</button>
             </form>   
-        </div>
-
-        <div class="gombok_regist">
-            <button type="button" id="bejGomb"><a href="login.php">Bejelentkezés</a></button>
-            <button type="button" id="regGomb"><a href="registration.php">Regisztráció</a></button>
+            <div class="gombok_regist">
+                <button type="button" id="bejGomb2" onclick="login()">Bejelentkezés</button>
+                <button type="button" id="regGomb2" onclick="register()">Regisztráció</button>
+            </div>
         </div>
     </div>
-
+</div>
 
 <?php
 $conn->close();
 ?>
 
 <script>
+var l = document.getElementById("login");
+var r = document.getElementById("register");
+function login() {
+    l.style.left = "0px";
+    r.style.left = "370px";
+}
+function register() {
+    l.style.left = "-370px";
+    r.style.left = "0px";
+}
 
 </script>
 </body>
