@@ -63,6 +63,7 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>Calendar</title>
     <style>
     *{
@@ -208,7 +209,8 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
                 <div id="input">
                     <input type="hidden" name="action" value="login">
                     <input class="input_text" type="text" placeholder="Email: " name="emaillog">
-                    <input class="input_text" type="password" placeholder="Jelszó: " name="jelszolog">
+                    <input class="input_text" id="show1" type="password" placeholder="Jelszó: " name="jelszolog">
+                    <i class="fa-solid fa-eye" id="toggle1" style="position:absolute; right: 35px; top: 70px; cursor: pointer;"></i>
                 </div>
                     <button class="submit_gomb" type="submit" name="actio">Bejelentkezés</button>
             </form>   
@@ -225,7 +227,8 @@ if($_SERVER["REQUEST_METHOD"]==="POST"){ $action=$_POST["action"] ?? ""; if($act
                     <input type="hidden" name="action" value="register">
                     <input class="input_text" type="text" placeholder="Email: " name="email">
                     <input class="input_text" type="text" placeholder="Felhasználónév: " name="nev">
-                    <input class="input_text" type="password" placeholder="Jelszó: " name="jelszo">
+                    <input class="input_text" id="show2" type="password" placeholder="Jelszó: " name="jelszo">
+                    <i class="fa-solid fa-eye" id="toggle2" style="position:absolute; right: 35px; top: 120px; cursor: pointer;"></i>
                 </div>
                     <button class="submit_gomb" type="submit" name="actio">Regisztráció</button>
             </form>   
@@ -242,16 +245,52 @@ $conn->close();
 ?>
 
 <script>
-var l = document.getElementById("login");
-var r = document.getElementById("register");
-function login() {
-    l.style.left = "0px";
-    r.style.left = "370px";
-}
-function register() {
-    l.style.left = "-370px";
-    r.style.left = "0px";
-}
+    var l = document.getElementById("login");
+    var r = document.getElementById("register");
+    function login() {
+        l.style.left = "0px";
+        r.style.left = "370px";
+    }
+    function register() {
+        l.style.left = "-370px";
+        r.style.left = "0px";
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const password = document.getElementById("show1");
+        const toggle = document.getElementById("toggle1");
+        if (password && toggle) {
+            toggle.addEventListener("click", () => {
+                if (password.type === "password") {
+                    password.type = "text";
+                    toggle.classList.remove("fa-eye");
+                    toggle.classList.add("fa-eye-slash");
+                } else {
+                    password.type = "password";
+                    toggle.classList.remove("fa-eye-slash");
+                    toggle.classList.add("fa-eye");
+                }
+            });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const password2 = document.getElementById("show2");
+        const toggle2 = document.getElementById("toggle2");
+        if (password2 && toggle2) {
+            toggle2.addEventListener("click", () => {
+                if (password2.type === "password") {
+                    password2.type = "text";
+                    toggle2.classList.remove("fa-eye");
+                    toggle2.classList.add("fa-eye-slash");
+                } else {
+                    password2.type = "password";
+                    toggle2.classList.remove("fa-eye-slash");
+                    toggle2.classList.add("fa-eye");
+                }
+            });
+        }
+    });
 
 </script>
 </body>
