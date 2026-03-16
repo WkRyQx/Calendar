@@ -688,79 +688,119 @@ $error = "";
 });
 
 
-// dropdown initialisation
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.dropdown2').forEach(dropdown => {
-                const input = dropdown.querySelector('.textBox');
-                const optionBox = dropdown.querySelector('.option');
-                if (!input || !optionBox) return;
+</script>
 
-                const options = optionBox.querySelectorAll('div');
-                if (options.length === 0) return;
+<?php
+// ESEMÉNY MENTÉS
+if(isset($_POST['save_event'])){
 
-                input.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    dropdown.classList.toggle('active');
+$nev = $_POST['nev'] ?? '';
+$leiras = $_POST['leiras'] ?? '';
+$kezdet = $_POST['kezdet'] ?? '';
+$vege = $_POST['vege'] ?? '';
+$esemenykat_id = $_POST['esemenykat_id'] ?? NULL;
+$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
 
-                    const rect = input.getBoundingClientRect();
-                    const spaceBelow = window.innerHeight - rect.bottom;
-                    const spaceAbove = rect.top;
+$sql = "INSERT INTO esemeny 
+(nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id)
+VALUES 
+('$nev','$leiras','$kezdet','$vege','$esemenykat_id','$felhasznalo_id')";
 
-                    if (spaceBelow < optionBox.offsetHeight && spaceAbove > spaceBelow) {
-                        optionBox.style.top = 'auto';
-                        optionBox.style.bottom = `${input.offsetHeight}px`;
-                    } else {
-                        optionBox.style.top = `${input.offsetHeight}px`;
-                        optionBox.style.bottom = 'auto';
-                    }
-                });
+$conn->query($sql);
 
-                options.forEach(option => {
-                    option.addEventListener('click', (e) => {
-                        dropdown.classList.remove('active');
-                        const type = option.innerText.trim();
-                    });
-                });
+header("Location: home.php");
+exit();
+}
+?>
 
-                document.addEventListener('click', (e) => {
-                    if (!dropdown.contains(e.target)) {
-                        dropdown.classList.remove('active');
-                    }
-                });
-            });
-        });
-    </script>
-
-    <div id="eventModal" class="custom-modal-overlay">
+<!-- ESEMÉNY MODAL -->
+<div id="eventModal" class="custom-modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Új esemény</h3>
             <button class="close-modal">&times;</button>
         </div>
-        <div class="modal-body">
-            <input type="text" placeholder="Esemény címe">
-            <input type="date" value="<?php echo date('Y-m-d'); ?>">
-        </div>
-        <div class="modal-footer">
-            <button class="save-btn">Mentés</button>
-        </div>
+
+        <form method="POST">
+            <div class="modal-body">
+
+                <input type="text" name="nev" placeholder="Esemény neve" required>
+
+                <textarea name="leiras" placeholder="Leírás"></textarea>
+
+                <label>Kezdet</label>
+                <input type="datetime-local" name="kezdet" required>
+
+                <label>Vége</label>
+                <input type="datetime-local" name="vege">
+
+                <label>Kategória ID</label>
+                <input type="number" name="esemenykat_id">
+
+                <input type="hidden" name="felhasznalo_id" value="<?php echo $_SESSION['user_id']; ?>">
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="save-btn" name="save_event">Mentés</button>
+            </div>
+        </form>
+
     </div>
 </div>
 
-<!-- Teendő ablak -->
+<?php
+// TEENDŐ MENTÉS
+if(isset($_POST['save_task'])){
+
+$nev = $_POST['nev'] ?? '';
+$leiras = $_POST['leiras'] ?? '';
+$hatarido = $_POST['hatarido'] ?? '';
+$kesz = $_POST['kesz'] ?? 0;
+$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
+
+$sql = "INSERT INTO teendo 
+(nev, leiras, hatarido, kesz, felhasznalo_id)
+VALUES 
+('$nev','$leiras','$hatarido','$kesz','$felhasznalo_id')";
+
+$conn->query($sql);
+
+header("Location: home.php");
+exit();
+
+}
+?>
+
+<!-- TEENDŐ MODAL -->
 <div id="taskModal" class="custom-modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Új teendő</h3>
             <button class="close-modal">&times;</button>
         </div>
-        <div class="modal-body">
-            <input type="text" placeholder="Mi a feladat?">
-        </div>
-        <div class="modal-footer">
-            <button class="save-btn">Hozzáadás</button>
-        </div>
+
+        <form method="POST">
+            <div class="modal-body">
+
+                <input type="text" name="nev" placeholder="Feladat neve" required>
+
+                <textarea name="leiras" placeholder="Leírás"></textarea>
+
+                <label>Határidő</label>
+                <input type="date" name="hatarido">
+
+                <input type="hidden" name="felhasznalo_id" value="<?php echo $_SESSION['user_id']; ?>">
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="save-btn" name="save_task">Hozzáadás</button>
+            </div>
+        </form>
     </div>
+
+
 </div>
 </body>
 </html>
