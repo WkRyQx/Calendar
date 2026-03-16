@@ -16,7 +16,47 @@ if ($conn->connect_error) {
 $success = "";
 $error = "";
 
+// ESEMÉNY MENTÉS
+if(isset($_POST['save_event'])){
 
+$nev = $_POST['nev'] ?? '';
+$leiras = $_POST['leiras'] ?? '';
+$kezdet = $_POST['kezdet'] ?? '';
+$vege = $_POST['vege'] ?? '';
+$esemenykat_id = $_POST['esemenykat_id'] ?? NULL;
+$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
+
+$sql = "INSERT INTO esemeny 
+(nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id)
+VALUES 
+('$nev','$leiras','$kezdet','$vege','$esemenykat_id','$felhasznalo_id')";
+
+$conn->query($sql);
+
+header("Location: home.php");
+exit();
+}
+
+// TEENDŐ MENTÉS
+if(isset($_POST['save_task'])){
+
+$nev = $_POST['nev'] ?? '';
+$leiras = $_POST['leiras'] ?? '';
+$hatarido = $_POST['hatarido'] ?? '';
+$kesz = $_POST['kesz'] ?? 0;
+$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
+
+$sql = "INSERT INTO teendo 
+(nev, leiras, hatarido, kesz, felhasznalo_id)
+VALUES 
+('$nev','$leiras','$hatarido','$kesz','$felhasznalo_id')";
+
+$conn->query($sql);
+
+header("Location: home.php");
+exit();
+
+}
 
 ?>
 
@@ -325,34 +365,32 @@ $error = "";
 
 
                     /* ======== ÜTKÖZÉSKEZELÉS ======== */
-                    foreach ($events as $i => $event) {
-                        $events[$i]['startMin'] = timeToMinutes($event['start']);
-                        $events[$i]['endMin']   = timeToMinutes($event['end']);
-                        $events[$i]['column'] = 0;
-                        $events[$i]['totalColumns'] = 1;
-                    }
+                        $totalColumns = max(1, $event['totalColumns'] ?? 1);
+                        $column = max(0, $event['column'] ?? 0);
+                        
+                        $width = 100 / $totalColumns;
+                        $left = $column * $width;
 
                     for ($i = 0; $i < count($events); $i++) {
-                        $overlaps = [];
+
+                        $events[$i]['column'] = 0;
+                        $events[$i]['totalColumns'] = 1;
+
                         for ($j = 0; $j < count($events); $j++) {
+
                             if ($i == $j) continue;
 
                             if (
                                 $events[$i]['startMin'] < $events[$j]['endMin'] &&
                                 $events[$i]['endMin'] > $events[$j]['startMin']
                             ) {
-                                $overlaps[] = $j;
-                            }
-                        }
 
-                        if (!empty($overlaps)) {
-                            $events[$i]['totalColumns'] = count($overlaps) + 1;
-                            $events[$i]['column'] = array_search($i, array_merge([$i], $overlaps));
-                            if ($events[$i]['column'] === false) {
-                                $events[$i]['column'] = 0;
+                                $events[$i]['totalColumns']++;
                             }
                         }
                     }
+
+
 
                     /* ======== AKTUÁLIS IDŐ ======== */
                     $currentTop = date('G') * 60 + date('i');
@@ -690,29 +728,6 @@ $error = "";
 
 </script>
 
-<?php
-// ESEMÉNY MENTÉS
-if(isset($_POST['save_event'])){
-
-$nev = $_POST['nev'] ?? '';
-$leiras = $_POST['leiras'] ?? '';
-$kezdet = $_POST['kezdet'] ?? '';
-$vege = $_POST['vege'] ?? '';
-$esemenykat_id = $_POST['esemenykat_id'] ?? NULL;
-$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
-
-$sql = "INSERT INTO esemeny 
-(nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id)
-VALUES 
-('$nev','$leiras','$kezdet','$vege','$esemenykat_id','$felhasznalo_id')";
-
-$conn->query($sql);
-
-header("Location: home.php");
-exit();
-}
-?>
-
 <!-- ESEMÉNY MODAL -->
 <div id="eventModal" class="custom-modal-overlay">
     <div class="modal-content">
@@ -748,29 +763,6 @@ exit();
 
     </div>
 </div>
-
-<?php
-// TEENDŐ MENTÉS
-if(isset($_POST['save_task'])){
-
-$nev = $_POST['nev'] ?? '';
-$leiras = $_POST['leiras'] ?? '';
-$hatarido = $_POST['hatarido'] ?? '';
-$kesz = $_POST['kesz'] ?? 0;
-$felhasznalo_id = $_POST['felhasznalo_id'] ?? NULL;
-
-$sql = "INSERT INTO teendo 
-(nev, leiras, hatarido, kesz, felhasznalo_id)
-VALUES 
-('$nev','$leiras','$hatarido','$kesz','$felhasznalo_id')";
-
-$conn->query($sql);
-
-header("Location: home.php");
-exit();
-
-}
-?>
 
 <!-- TEENDŐ MODAL -->
 <div id="taskModal" class="custom-modal-overlay">

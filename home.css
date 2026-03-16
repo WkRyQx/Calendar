@@ -314,7 +314,8 @@ body {
     position: relative;
     width: 100%;
     height: 40px;
-    margin-bottom: 0px;}
+    margin-bottom: 0px;
+}
 
 .dropdown::before {
     content: "";
@@ -339,7 +340,6 @@ body {
     border: 1px solid black;
     border-radius: 30px;
     outline: none;
-    transition: .2s ease;
     margin-bottom: 0; 
     box-shadow: none;  
 }
@@ -380,7 +380,76 @@ body {
     color: #000;
 }
 
+.dropdown2{
+    left: 500px;
+    position: relative;
+    width: 10px;
+    height: 40px;
+    margin-bottom: 0px;
+}
 
+.dropdown2::before {
+    content: "";
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    z-index: 100;
+    pointer-events: none;
+}
+
+
+.dropdown2 input {
+    position: relative;
+    z-index: 1; 
+    height: 50px;
+    width: 100%;    
+    cursor: pointer;
+    font-size: 12px;
+    background: #fff;
+    color: #000;
+    padding: 0 50px 0 50px;  
+    border: 1px solid black;
+    border-radius: 30px;
+    outline: none;
+    margin-bottom: 0; 
+    box-shadow: none;  
+}
+
+
+.dropdown2 .option{
+    position: absolute;
+    top: 50px;
+    width: 100%;
+    background: #fff;
+    box-shadow: 0 30px 30px rgba(0, 0, 0, 0.05);
+    border-radius: 30px;
+    overflow: hidden;
+    display: none;
+    z-index: 999; 
+}
+
+
+.dropdown2.active .option{
+    display: block;
+}
+
+.dropdown2 .option div {
+    padding: 12px 20px;  
+    cursor: pointer;
+    border-bottom: 1px solid #eee;  
+}
+
+.dropdown2 .option div:last-child {
+    border-bottom: none;
+}
+
+.dropdown2 i {
+    position: relative;
+    left: 35px;
+    top: 50%;
+    font-size: 12px;
+    color: #000;
+}
 /* Naptar */
 
 .calendar {
@@ -513,6 +582,7 @@ body {
     font-size:13px;
     color:white;
     box-sizing:border-box;
+    overflow:hidden;
 }
 
 .current-time {
