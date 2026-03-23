@@ -5,8 +5,48 @@
 
 body {
     margin: 0;
-    height: max(100vh, 100%);
+    height: 100%;
     font-family: Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: 0.3s;
+}
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --sidebar-bg: #f4f4f4;
+    --event-bg: #4caf50;    
+    --border-color: #ddd;
+    --muted-text: #888;
+    --black-bg:#1a1a1a;
+    --week-color:#000000;
+}
+
+body.dark-mode {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --sidebar-bg: #2d2d2d;
+    --event-bg: #2e7d32;
+    --border-color: #444;
+    --muted-text: #666;
+    --week-color: #ffffff;
+}
+
+.day.muted { color: var(--muted-text); }
+.hour-line, .time-slot { border-color: var(--border-color); }
+
+#darkModeToggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+    padding: 8px 12px;
+    background: var(--sidebar-bg);
+    color: var(--text-color);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
 /* ================= SIDEBAR ================= */
@@ -18,7 +58,7 @@ body {
     min-width: 280px;
     max-width: 600px;
     height: 100vh;
-    background: white;
+    background: var(--sidebar-bg);
     box-shadow: 2px 0 10px rgba(0,0,0,0.2);
     padding: 20px;
     transition: transform 0.3s ease;
@@ -84,7 +124,7 @@ body {
     justify-content: flex-end;
     align-items: center;
     padding-right: 8px;
-    color: #666;
+    color: var(--muted-text);
 }
 
 .calendar-grid {
@@ -104,7 +144,7 @@ body {
     height: 50px;
     border-radius: 6px;
     font-size: 13px;
-    color: white;
+    color: var(--bg-color);
     overflow: hidden;
 }
 
@@ -173,7 +213,7 @@ body {
 
 /* FIX: tooltip */
 .month-event {
-    color: white;
+    color: var(--bg-color);
     padding: 2px 4px;
     margin: 2px 0;
     border-radius: 4px;
@@ -189,8 +229,8 @@ body {
     position: absolute;
     left: 0;
     top: 100%;
-    background: black;
-    color: white;
+    background: var(--week-color);
+    color: var(--bg-color);
     padding: 5px;
     border-radius: 4px;
     white-space: normal;
@@ -200,7 +240,7 @@ body {
 
 /* ================= MINI CALENDAR ================= */
 .calendar {
-    background: white;
+    background: var(--bg-color);
     padding: 20px;
     width: 100%;
 }
@@ -219,12 +259,12 @@ body {
 }
 
 .day:hover {
-    background: lightgray;
+    background: var(--muted-text);
 }
 
 .today {
     background: rgb(44, 44, 248);
-    color: white;
+    color: var(--bg-color);
 }
 
 /* ================= DROPDOWN ================= */
@@ -247,7 +287,7 @@ body {
     width: 100%;
     padding-left: 15px;
     border: 1px solid black;
-    background: white;
+    background: var(--bg-color);
     border-radius: 20px;
     display: none;
     z-index: 999;
@@ -284,7 +324,7 @@ body {
     top: 50px;
     width: 100px;
     border: 1px solid black;
-    background: white;
+    background: var(--bg-color);
     border-radius: 10px;
     display: none;
     z-index: 999;
@@ -314,7 +354,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
+    background: var(--bg-color);
     padding: 20px;
     border-radius: 8px;
     width: 320px;
@@ -333,7 +373,7 @@ body {
 .save-btn {
     float: right;
     background: #1a73e8;
-    color: white;
+    color: var(--bg-color);
     border: none;
     padding: 8px 16px;
     border-radius: 4px;

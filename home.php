@@ -1,5 +1,6 @@
 <?php
 /* =========================SESSION + DB (MYSQLI)========================= */
+$theme = $_COOKIE['theme'] ?? 'light';
 session_start();
 
 $servername = "localhost";
@@ -22,6 +23,22 @@ $userId = $_SESSION['user_id'];
 
 $success = "";
 $error = "";
+
+/*===========================DARK-MODE==============================*/
+
+// 1. Megnézzük, érkezett-e kérés a váltásra
+if (isset($_GET['mod'])) {
+    $valasztas = $_GET['mod']; // 'dark' vagy 'light'
+    // 2. ELMENTJÜK A SÜTIT (ez a kulcs!)
+    setcookie("tema", $valasztas, time() + (86400 * 30), "/"); 
+    // 3. Visszaugrunk az oldalra, hogy lássuk az eredményt
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// 4. KIOLVASSUK a sütit (ha nincs, alapból 'light')
+$stilus = $_COOKIE['tema'] ?? 'light';
+
 
 /* =========================ESEMÉNY MENTÉS========================= */
 if(isset($_POST['save_event'])){
@@ -277,6 +294,12 @@ $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
             echo "</div>";
         ?>
     </div>
+
+<!-- DARK-MODE TOGGLE -->
+    <button id="darkModeToggle" type="button">
+        <i class="fa-solid fa-moon"></i>
+    </button>
+
 </div>
 
 <div class="main-content">
@@ -711,6 +734,42 @@ $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
                 }
             };
         });
+
+//DARKMODE_____________________________________________________________________________________________________________________________
+                                    
+const darkModeToggle = document.getElementById('darkModeToggle');
+const body = document.body;
+const icon = darkModeToggle.querySelector('i');
+
+// 1. FUNKCIÓ A SÜTI MENTÉSÉHEZ (Ez teszi elérhetővé minden mappában)
+function setStyleCookie(theme) {
+    // 30 napra mentjük el, a "path=/" miatt minden localhost mappában látszódni fog
+    document.cookie = "theme=" + theme + "; max-age=" + (86400 * 30) + "; path=/";
+}
+
+// 2. BETÖLTÉSKOR: Ellenőrizzük a sütit (vagy marad a localStorage is biztonság kedvéért)
+const savedTheme = document.cookie.split('; ').find(row => row.startsWith('theme='))?.split('=')[1] 
+                   || localStorage.getItem('theme');
+
+if (savedTheme === 'dark') {
+    body.classList.add('dark-mode');
+    if(icon) icon.classList.replace('fa-moon', 'fa-sun');
+}
+
+// 3. KATTINTÁSKOR: Mentünk sütibe ÉS localstorage-ba is
+darkModeToggle.addEventListener('click', () => {
+    body.classList.toggle('dark-mode');
+    
+    if (body.classList.contains('dark-mode')) {
+        localStorage.setItem('theme', 'dark');
+        setStyleCookie('dark'); // Mentés minden mappának
+        if(icon) icon.classList.replace('fa-moon', 'fa-sun');
+    } else {
+        localStorage.setItem('theme', 'light');
+        setStyleCookie('light'); // Mentés minden mappának
+        if(icon) icon.classList.replace('fa-sun', 'fa-moon');
+    }
+});
 </script>
 
 <!-- ESEMÉNY MODAL -->
