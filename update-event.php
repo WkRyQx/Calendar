@@ -1,32 +1,27 @@
 <?php
-session_start();
-
-if (!isset($_SESSION['user_id'])) {
-    exit("Hiba: nincs bejelentkezve");
-}
-
 $conn = new mysqli("localhost", "root", "", "calendar");
 
 if ($conn->connect_error) {
-    exit("DB hiba");
+die("DB hiba: " . $conn->connect_error);
 }
 
-$id = $_POST['id'] ?? null;
-$start = $_POST['start'] ?? null;
-$end = $_POST['end'] ?? null;
-$date = $_POST['date'] ?? null;
+echo "POST: ";
+print_r($_POST);
 
-$userId = $_SESSION['user_id'];
-
-if (!$id || !$start || !$end || !$date) {
-    exit("Hiányzó adat");
-}
+$id = $_POST['id'] ?? 0;
+$start = $_POST['start'] ?? '';
+$end = $_POST['end'] ?? '';
+$date = $_POST['date'] ?? '';
 
 $startFull = $date . " " . $start . ":00";
 $endFull = $date . " " . $end . ":00";
 
-$stmt = $conn->prepare("UPDATE esemeny SET kezdet=?, vege=? WHERE id=? AND felhasznalo_id=?");
-$stmt->bind_param("ssii", $startFull, $endFull, $id, $userId);
-$stmt->execute();
+$sql = "UPDATE esemeny
+SET kezdet='$startFull', vege='$endFull'
+WHERE id=$id";
 
-echo "OK";
+if ($conn->query($sql)) {
+echo " | OK | rows: " . $conn->affected_rows;
+} else {
+echo " | ERROR: " . $conn->error;
+}
