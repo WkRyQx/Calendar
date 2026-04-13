@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <link rel="stylesheet" href="profil.css">
     <title>Személyes adatok</title>
 </head>
@@ -21,7 +22,7 @@
             <a href="profil.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/home.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-house"></i>
                     <div class="menupontSpan">
                         <span>Kezdőlap</span>
                     </div>     
@@ -32,7 +33,7 @@
             <a href="szemelyes_adatok.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/user.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-user"></i>
                     <div class="menupontSpan">
                         <span>Személyes adatok</span>
                     </div>
@@ -43,7 +44,7 @@
             <a href="biztonsag.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/lock.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-lock"></i>
                     <div class="menupontSpan">
                         <span>Biztonság</span>
                     </div>

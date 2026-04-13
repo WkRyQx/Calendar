@@ -1,0 +1,67 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.header {
+    border-bottom: 1px solid black;
+}
+
+i {
+    float: left;
+}
+
+h2 {
+    margin-left: 25px;
+}
+
+h3 {
+    text-align: center;
+}
+
+.menu {
+    border-radius: 15px;
+    margin: 20px;
+    padding: 20px;
+    background-color: rgb(179, 179, 179);
+    height: 518px;
+    box-shadow: 3px 3px 3px 3px rgba(89, 89, 89, 0.155);
+}
+
+.menu2 {
+    border: 1.5px solid black;
+    border-radius: 15px;
+    background-color: white;
+    box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
+    width: 337px;
+    height: 500px;
+    float: left;
+    margin-right: 20px;
+}
+
+.menu2_1 {
+    border: 1.5px solid black;
+    border-radius: 15px;
+    background-color: white;
+    box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
+    width: 337px;
+    height: 500px;
+    float: left;
+}
+
+select {
+    padding: 6px;
+    font-size: 16px;
+}
+
+.beltartalom {
+    padding: 15px;
+}
+
+input {
+    margin-bottom: 5px;
+    width: 300px;
+}
+
+#adat_submit {
+    float: right;
+}

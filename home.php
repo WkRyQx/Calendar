@@ -1,18 +1,7 @@
 <?php
-/* =========================SESSION + DB (MYSQLI)========================= */
-$theme = $_COOKIE['theme'] ?? 'light';
+/* ========================= SESSION + DB (PDO) ========================= */
 session_start();
-
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "calendar";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Hiba a kapcsolódáskor: " . $conn->connect_error);
-}
+date_default_timezone_set('Europe/Budapest');
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: log-reg.php");
@@ -20,95 +9,197 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = $_SESSION['user_id'];
-
 $success = "";
 $error = "";
 
-/*===========================DARK-MODE==============================*/
-
-// 1. Megnézzük, érkezett-e kérés a váltásra
-if (isset($_GET['mod'])) {
-    $valasztas = $_GET['mod']; // 'dark' vagy 'light'
-    // 2. ELMENTJÜK A SÜTIT (ez a kulcs!)
-    setcookie("tema", $valasztas, time() + (86400 * 30), "/"); 
-    // 3. Visszaugrunk az oldalra, hogy lássuk az eredményt
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
+// DB Kapcsolat (PDO)
+try {
+    $pdo = new PDO("mysql:host=localhost;dbname=calendar;charset=utf8", "root", "");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Hiba az adatbázis kapcsolódáskor: " . $e->getMessage());
 }
 
-// 4. KIOLVASSUK a sütit (ha nincs, alapból 'light')
-$stilus = $_COOKIE['tema'] ?? 'light';
-
-
-/* =========================ESEMÉNY MENTÉS========================= */
-if(isset($_POST['save_event'])){
-
+/* ========================= ESÉNYEK-TEENDŐK MENTÉSE ========================= */
+if (isset($_POST['save_event'])) {
     $nev = $_POST['nev'] ?? '';
     $leiras = $_POST['leiras'] ?? '';
     $kezdet = $_POST['kezdet'] ?? '';
     $vege = $_POST['vege'] ?? '';
-    $esemenykat_id = $_POST['esemenykat_id'] ?? NULL;
+    $esemenykat_id = !empty($_POST['esemenykat_id']) ? $_POST['esemenykat_id'] : NULL;
 
-    $sql = "INSERT INTO esemeny 
-    (nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id)
-    VALUES 
-    ('$nev','$leiras','$kezdet','$vege','$esemenykat_id','$userId')";
-
-    $conn->query($sql);
+    $stmt = $pdo->prepare("INSERT INTO esemeny (nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$nev, $leiras, $kezdet, $vege, $esemenykat_id, $userId]);
 
     header("Location: home.php");
     exit();
 }
 
-/* =========================TEENDŐ MENTÉS========================= */
-if(isset($_POST['save_task'])){
-
+if (isset($_POST['save_task'])) {
     $nev = $_POST['nev'] ?? '';
     $leiras = $_POST['leiras'] ?? '';
     $hatarido = $_POST['hatarido'] ?? '';
     $kesz = 0;
 
-    $sql = "INSERT INTO teendo 
-    (nev, leiras, hatarido, kesz, felhasznalo_id)
-        VALUES 
-    ('$nev','$leiras','$hatarido','$kesz','$userId')";
-
-    $conn->query($sql);
+    $stmt = $pdo->prepare("INSERT INTO teendo (nev, leiras, hatarido, kesz, felhasznalo_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$nev, $leiras, $hatarido, $kesz, $userId]);
 
     header("Location: home.php");
     exit();
 }
 
-/* =========================PDO LEKÉRDEZÉSEK========================= */
-date_default_timezone_set('Europe/Budapest');
-
-$pdo = new PDO("mysql:host=localhost;dbname=calendar;charset=utf8", "root", "");
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-/* =========================DÁTUM KEZELÉS========================= */
+/* ========================= DÁTUM KEZELÉS ========================= */
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
+$view = $_GET['view'] ?? 'month';
 
-/* =========================ESEMÉNYEK LEKÉRÉSE========================= */
+// Naptár navigáció adatai
+if (isset($_GET['year']) && isset($_GET['month'])) {
+    $year  = (int)$_GET['year'];
+    $month = (int)$_GET['month'];
+} else {
+    $year  = (int)date('Y', strtotime($selectedDate));
+    $month = (int)date('n', strtotime($selectedDate));
+}
+
+$honapok = [1 => 'január', 2 => 'február', 3 => 'március', 4 => 'április', 5 => 'május', 6 => 'június', 7 => 'július', 8 => 'augusztus', 9 => 'szeptember', 10 => 'október', 11 => 'november', 12 => 'december'];
+$monthName = $year . '  ' . $honapok[$month];
+
+/* ========================= ADATOK LEKÉRÉSE ========================= */
+
+// Felhasználó adatai (profilkép + név ha nincs sessionben)
+$stmtUser = $pdo->prepare("SELECT profilkep, nev FROM felhasznalo WHERE id = ?");
+$stmtUser->execute([$userId]);
+$userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
+$profilkep = $userData['profilkep'] ?? null;
+if (!isset($_SESSION['user_name'])) {
+    $_SESSION['user_name'] = $userData['nev'] ?? 'User';
+}
+
+// Események lekérése a kiválasztott napra (Nap nézet)
 $stmtEvents = $pdo->prepare("
     SELECT e.nev, e.leiras, e.kezdet, e.vege, k.szin
     FROM esemeny e
     LEFT JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-    WHERE DATE(e.kezdet) = ?
-    AND e.felhasznalo_id = ?
+    WHERE DATE(e.kezdet) = ? AND e.felhasznalo_id = ?
     ORDER BY e.kezdet
 ");
 $stmtEvents->execute([$selectedDate, $userId]);
 $events = $stmtEvents->fetchAll(PDO::FETCH_ASSOC);
 
-/* =========================TEENDŐK LEKÉRÉSE========================= */
-$stmtTasks = $pdo->prepare("
-    SELECT *
-    FROM teendo
-    WHERE DATE(hatarido) = ?
-    AND felhasznalo_id = ?
-");
+// Teendők lekérése a kiválasztott napra
+$stmtTasks = $pdo->prepare("SELECT * FROM teendo WHERE DATE(hatarido) = ? AND felhasznalo_id = ?");
 $stmtTasks->execute([$selectedDate, $userId]);
 $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
+
+// Heti nézet adatai
+$weekStart = date('Y-m-d', strtotime('monday this week', strtotime($selectedDate)));
+$weekEnd   = date('Y-m-d', strtotime('sunday this week', strtotime($selectedDate)));
+$stmtWeek = $pdo->prepare("
+    SELECT e.*, k.szin 
+    FROM esemeny e
+    INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
+    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
+    ORDER BY e.kezdet
+");
+$stmtWeek->execute([$weekStart, $weekEnd, $userId]);
+$weekEvents = $stmtWeek->fetchAll(PDO::FETCH_ASSOC);
+
+// Havi nézet adatai
+$monthStart = "$year-" . sprintf("%02d", $month) . "-01";
+$monthEnd = date('Y-m-t', strtotime($monthStart));
+$stmtMonth = $pdo->prepare("
+    SELECT e.*, k.szin 
+    FROM esemeny e
+    INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
+    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
+    ORDER BY e.kezdet
+");
+$stmtMonth->execute([$monthStart, $monthEnd, $userId]);
+$monthEvents = $stmtMonth->fetchAll(PDO::FETCH_ASSOC);
+
+// Mini-naptár indikátorok (minden nap, ahol van esemény vagy teendő)
+$stmtIndicators = $pdo->prepare("
+    SELECT DISTINCT DATE(kezdet) as datum FROM esemeny WHERE felhasznalo_id = ?
+    UNION
+    SELECT DISTINCT DATE(hatarido) as datum FROM teendo WHERE felhasznalo_id = ?
+");
+$stmtIndicators->execute([$userId, $userId]);
+$indicatorDates = $stmtIndicators->fetchAll(PDO::FETCH_COLUMN);
+
+/* ========================= SEGÉDFÜGGVÉNYEK ========================= */
+function timeToMinutes($time) {
+    list($h, $m) = explode(':', $time);
+    return $h * 60 + $m;
+}
+
+/* ======== ÜTKÖZÉSKEZELÉS ======== */
+
+foreach ($events as &$event) {
+    $start = new DateTime($event['kezdet']);
+    $end = new DateTime($event['vege']);
+    $event['startMin'] = ((int)$start->format('H')) * 60 + (int)$start->format('i');
+    $event['endMin'] = ((int)$end->format('H')) * 60 + (int)$end->format('i');
+    $event['start'] = $start->format('H:i');
+    $event['end'] = $end->format('H:i');
+}
+unset($event);
+usort($events, function($a, $b) {
+    return $a['startMin'] <=> $b['startMin'];
+});
+$active = [];
+for ($i = 0; $i < count($events); $i++) {
+    $active = array_filter($active, function($e) use ($events, $i) {
+        return $e['endMin'] > $events[$i]['startMin'];
+    });
+    $usedColumns = array_column($active, 'column');
+    $col = 0;
+    while (in_array($col, $usedColumns)) {
+        $col++;
+    }
+    $events[$i]['column'] = $col;
+    $active[] = &$events[$i];
+}
+foreach ($events as &$event) {
+    $maxOverlap = 1;
+    foreach ($events as $e2) {
+        if (
+            $event['startMin'] < $e2['endMin'] &&
+            $event['endMin'] > $e2['startMin']
+        ) {
+            $overlapCount = 0;
+            foreach ($events as $e3) {
+                if (
+                    $e2['startMin'] < $e3['endMin'] &&
+                    $e2['endMin'] > $e3['startMin']
+                ) {
+                    $overlapCount++;
+                }
+            }
+            $maxOverlap = max($maxOverlap, $overlapCount);
+        }
+    }
+    $event['totalColumns'] = $maxOverlap;
+}
+unset($event);
+
+/* ======== Esemény frissítése ======== */
+
+$conn = new mysqli("localhost", "root", "", "calendar");
+
+$id = $_POST['id'] ?? null;
+$start = $_POST['start'] ?? null;
+$end = $_POST['end'] ?? null;
+$date = $_POST['date'] ?? null;
+
+$userId = $_SESSION['user_id'];
+
+
+$startFull = $date . " " . $start . ":00";
+$endFull = $date . " " . $end . ":00";
+
+$stmt = $conn->prepare("UPDATE esemeny SET kezdet=?, vege=? WHERE id=? AND felhasznalo_id=?");
+$stmt->bind_param("ssii", $startFull, $endFull, $id, $userId);
+$stmt->execute();
 
 ?>
 
@@ -123,45 +214,62 @@ $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
     <title>Főoldal</title>
 </head>
 <body>
-<!-- =========================ÜZENETEK========================= -->
-<?php if ($success): ?>
-<div class="msg success"><?= $success ?></div>
-<?php endif; ?>
-<?php if ($error): ?>
-<div class="msg error"><?= $error ?></div>
-<?php endif; ?>
 
-<button id="menuBtn" type="button"><i class="fa-solid fa-bars"></i></button>
-<div class="dropdown2">
-        <i class="fa-solid fa-plus"></i>
-        <input type="text" class="textBox"  placeholder=""  name="letrehozas" readonly >
-        <div class="option">
-            <div>Esemény</div>
-            <div>Teendő</div>
+<?php if ($success): ?><div class="msg success"><?= $success ?></div><?php endif; ?>
+<?php if ($error): ?><div class="msg error"><?= $error ?></div><?php endif; ?>
+
+<div class="header-controls">
+    <div class="left-controls">
+        <button id="menuBtn" type="button"><i class="fa-solid fa-bars"></i></button>
+
+        <div class="dropdown2" title="Létrehozás">
+            <i class="fa-solid fa-plus"></i>
+            <div class="textBox"></div>
+            <div class="option">
+                <div>Esemény</div>
+                <div>Teendő</div>
+            </div>
         </div>
-</div>
+    </div>
 
-<div class="dropdown3">
-        <i class="fa-solid fa-gear"></i>
-        <input type="text" class="textBox"  placeholder=""  name="settings" readonly >
-        <div class="option">
-            <form method="get" action="profil.php">
-                <div>  Fiók  </div>
-            </form>
-            <form method="Post" action="kijelentkezes.php" class="kijelentkezes">
-                <div>  Kijelentkezés  </div>
-            </form>
+    <div class="right-controls">
+
+        <div class="view-switch">
+            <select id="viewSelect" onchange="switchView(this.value)">
+                <option value="day" <?= $view == 'day' ? 'selected' : '' ?>>Napi nézet</option>
+                <option value="week" <?= $view == 'week' ? 'selected' : '' ?>>Heti nézet</option>
+                <option value="month" <?= $view == 'month' ? 'selected' : '' ?>>Havi nézet</option>
+            </select>
         </div>
+        <div class="dropdown3" title="Beállítások">
+            <i class="fa-solid fa-gear"></i>
+            <div class="textBox"></div>
+            <div class="option">
+                <form method="get" action="settings.php"><div>Beállítások</div></form>
+                <form method="Post" action="kijelentkezes.php" class="kijelentkezes"><div>Kijelentkezés</div></form>
+            </div>
+        </div>
+        <a href="profil.php" id="profil" title="Profil">
+            <div class="profile-icon">
+                <?php if (!empty($profilkep)): ?>
+                    <img src="Profilkepek/<?= $profilkep ?>" alt="profil">
+                <?php else: ?>
+                    <?= strtoupper($_SESSION["user_name"][0]) ?>
+                <?php endif; ?>
+            </div>
+        </a>
+    </div>
 </div>
-
-
-
 
 <div id="sidebar">
     <button id="closeSidebarBtn" type="button"><i class="fa-solid fa-bars"></i></button>
+    <!-- DARK-MODE TOGGLE -->
+    <button id="darkModeToggle" type="button">
+        <i class="fa-solid fa-moon"></i>
+    </button>
     <div class="dropdown">
         <i class="fa-solid fa-plus"></i>
-        <input type="text" class="textBox"  placeholder="Létrehozás"  name="letrehozas" readonly >
+        <div class="textBox">Létrehozás</div>
         <div class="option">
             <div>Esemény</div>
             <div>Teendő</div>
@@ -170,650 +278,407 @@ $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
 
     <div class="calendar">
         <?php
+            $prevMonth = ($month == 1) ? 12 : $month - 1;
+            $prevYear  = ($month == 1) ? $year - 1 : $year;
+            $nextMonth = ($month == 12) ? 1 : $month + 1;
+            $nextYear  = ($month == 12) ? $year + 1 : $year;
 
-            //aktuális dátum – els51sorban a GET parameterekre figyelünk, ha nincs meg, a kivasztott naphoz igazdunk
-            if (isset($_GET['year']) && isset($_GET['month'])) {
-                $year  = (int)$_GET['year'];
-                $month = (int)$_GET['month'];
-            } elseif (isset($_GET['date'])) {
-                $year  = (int)date('Y', strtotime($_GET['date']));
-                $month = (int)date('n', strtotime($_GET['date']));
-            } else {
-                $year  = date('Y');
-                $month = date('n');
-            }
+            $prevDateParam = ($view !== 'month') ? '&date=' . date('Y-m-d', strtotime("$prevYear-$prevMonth-01")) : '';
+            $nextDateParam = ($view !== 'month') ? '&date=' . date('Y-m-d', strtotime("$nextYear-$nextMonth-01")) : '';
 
-            $honapok = [1 => 'január', 2 => 'február', 3 => 'március', 4 => 'április', 5 => 'május', 6 => 'június', 7 => 'július', 8 => 'augusztus', 9 => 'szeptember', 10 => 'október', 11 => 'november', 12 => 'december'];
-            $monthName = $year . '  ' . $honapok[$month];
-
-            $firstDayOfMonth = strtotime("$year-$month-01");
-            $daysInMonth = date('t', $firstDayOfMonth);
-            $startDay = date('N', $firstDayOfMonth) - 1; //vasárnap
-
-            // Aktuális mai dátum
-            $todayYear = date('Y');
-            $todayMonth = date('n');
-            $todayDay = date('j');
-
-            // Előző és következő hónap linkhez – a mini naptár fejlécéhez
-            $prevMonth = $month - 1;
-            $prevYear = $year;
-            $nextMonth = $month + 1;
-            $nextYear = $year;
-
-            if ($prevMonth < 1)
-            {
-                $prevMonth = 12;
-                $prevYear--;
-            }
-
-            if ($nextMonth > 12)
-            {
-                $nextMonth = 1;
-                $nextYear++;
-            }
-
-            // melyik nézetben vagyunk (day/week/month) a GET-ből
-            $view = isset($_GET['view']) ? $_GET['view'] : 'month';
-            // ha a heti nézetben szeretnénk a mini navigációt, váltsuk az új hónap első napjára
-            $prevDateParam = '';
-            $nextDateParam = '';
-            if ($view === 'week' || $view === 'day') {
-                $prevDateParam = '&date=' . date('Y-m-d', strtotime("$prevYear-$prevMonth-01"));
-                $nextDateParam = '&date=' . date('Y-m-d', strtotime("$nextYear-$nextMonth-01"));
-            }
-
-            echo "<h2> <a href='?year=$prevYear&month=$prevMonth&view=$view$prevDateParam'>&laquo;</a>$monthName<a href='?year=$nextYear&month=$nextMonth&view=$view$nextDateParam'>&raquo;</a> </h2>";
+            echo "<h2><a href='?year=$prevYear&month=$prevMonth&view=$view$prevDateParam'>&laquo;</a>$monthName<a href='?year=$nextYear&month=$nextMonth&view=$view$nextDateParam'>&raquo;</a></h2>";
         ?>
-            <div class="weekdays">
-                <div>H</div><div>K</div><div>Sze</div><div>Cs</div><div>P</div><div>Szo</div><div>V</div>
-            </div>
-        <?php
-            // determine which date (if any) has been selected via the GET param
-            $miniSelectedDate = isset($_GET['date']) ? $_GET['date'] : null;
-
-            echo "<div class='days'>";
+        <div class="weekdays">
+            <div>H</div><div>K</div><div>Sze</div><div>Cs</div><div>P</div><div>Szo</div><div>V</div>
+        </div>
+        <div class='days'>
+            <?php
+            $firstDayTs = strtotime("$year-$month-01");
+            $daysInMonth = date('t', $firstDayTs);
+            $startDay = date('N', $firstDayTs) - 1;
 
             // Előző hónap napjai
-            $prevMonthDays = date('t', strtotime('-1 month', $firstDayOfMonth));
-            $prevYear = $month == 1 ? $year - 1 : $year;
-            $prevMo   = $month == 1 ? 12 : $month - 1;
-            for ($i = $startDay - 1; $i >= 0; $i--)
-            {
+            $prevMonthDays = date('t', strtotime('-1 month', $firstDayTs));
+            for ($i = $startDay - 1; $i >= 0; $i--) {
                 $dayNum = $prevMonthDays - $i;
-                $cellDate = sprintf('%04d-%02d-%02d', $prevYear, $prevMo, $dayNum);
-                // mini calendar cell – include today class if matching
-                $additionalClass = '';
-                if ($cellDate === date('Y-m-d')) {
-                    $additionalClass .= ' today';
-                }
-                if ($miniSelectedDate && $cellDate === $miniSelectedDate) {
-                    $additionalClass .= ' selected';
-                }
-                echo "<div class=\"day muted$additionalClass\" data-date=\"$cellDate\">$dayNum</div>";
+                $cellDate = sprintf('%04d-%02d-%02d', $prevYear, $prevMonth, $dayNum);
+                $cls = 'day muted';
+                if ($cellDate === date('Y-m-d')) $cls .= ' today';
+                if ($selectedDate === $cellDate) $cls .= ' selected';
+                $dot = in_array($cellDate, $indicatorDates) ? '<span class="event-dot"></span>' : '';
+                echo "<div class='$cls' data-date='$cellDate'><span>$dayNum</span>$dot</div>";
             }
 
-            // Aktuális hónap napjai
-            for ($d = 1; $d <= $daysInMonth; $d++)
-            {
-                $class = 'day';
+            // Jelen hónap napjai
+            for ($d = 1; $d <= $daysInMonth; $d++) {
                 $cellDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
-
-                // Mai nap jelölése
-                if ($year == $todayYear && $month == $todayMonth && $d == $todayDay)
-                {
-                    $class .= ' today';
-                }
-                if ($miniSelectedDate && $cellDate === $miniSelectedDate) {
-                    $class .= ' selected';
-                }
-                $numClass = ($cellDate === date('Y-m-d')) ? ' today' : '';
-                echo "<div class='$class' data-date='$cellDate'><span class='month-day-number$numClass'>$d</span></div>";
+                $cls = 'day';
+                if ($cellDate === date('Y-m-d')) $cls .= ' today';
+                if ($selectedDate === $cellDate) $cls .= ' selected';
+                $dot = in_array($cellDate, $indicatorDates) ? '<span class="event-dot"></span>' : '';
+                echo "<div class='$cls' data-date='$cellDate'><span>$d</span>$dot</div>";
             }
 
-            // Következő hónap kitöltés
-            $totalCells = $startDay + $daysInMonth;
-            $remaining = 7 - ($totalCells % 7);
-            if ($remaining < 7)
-            {
-                // a következő hónap év/hó értékei
-                $nextYearVal = $month == 12 ? $year + 1 : $year;
-                $nextMonthVal = $month == 12 ? 1 : $month + 1;
-                for ($i = 1; $i <= $remaining; $i++) {
-                    $cellDate = sprintf('%04d-%02d-%02d', $nextYearVal, $nextMonthVal, $i);
-                    $add = '';
-                    if ($cellDate === date('Y-m-d')) {
-                        $add .= ' today';
-                    }
-                    if ($miniSelectedDate && $cellDate === $miniSelectedDate) {
-                        $add .= ' selected';
-                    }
-                    echo "<div class='day muted$add' data-date='$cellDate'>$i</div>";
-                }
+            // Következő hónap napjai
+            $remaining = (7 - (($startDay + $daysInMonth) % 7)) % 7;
+            for ($i = 1; $i <= $remaining; $i++) {
+                $cellDate = sprintf('%04d-%02d-%02d', $nextYear, $nextMonth, $i);
+                $cls = 'day muted';
+                if ($cellDate === date('Y-m-d')) $cls .= ' today';
+                if ($selectedDate === $cellDate) $cls .= ' selected';
+                $dot = in_array($cellDate, $indicatorDates) ? '<span class="event-dot"></span>' : '';
+                echo "<div class='$cls' data-date='$cellDate'><span>$i</span>$dot</div>";
             }
-            echo "</div>";
-        ?>
+            ?>
+        </div>
     </div>
+</div>
 
-<!-- DARK-MODE TOGGLE -->
-    <button id="darkModeToggle" type="button">
-        <i class="fa-solid fa-moon"></i>
-    </button>
 
 </div>
 
 <div class="main-content">
-    <div class="view-switch">
-        <select id="viewSelect" onchange="switchView(this.value)">
-            <option value="day">Napi nézet</option>
-            <option value="week">Heti nézet</option>
-            <option value="month">Havi nézet</option>
-        </select>
-    </div>
-
     <div class="calendar-container">
-        <div id="dayView" class="calendar-view">
-                <?php
-                    date_default_timezone_set('Europe/Budapest');
-
-                    $pdo = new PDO("mysql:host=localhost;dbname=calendar;charset=utf8", "root", "");
-                    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-                    $selectedDate = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-
-                    // napok közötti lapozáshoz
-                    $prevDate = date('Y-m-d', strtotime("$selectedDate -1 day"));
-                    $nextDate = date('Y-m-d', strtotime("$selectedDate +1 day"));
-
-                    // év/hónap paraméter a linkekhez (a nap alapján)
-                    $prevYear = date('Y', strtotime($prevDate));
-                    $prevMonth = date('n', strtotime($prevDate));
-                    $nextYear = date('Y', strtotime($nextDate));
-                    $nextMonth = date('n', strtotime($nextDate));
-
-                    // csak a nap száma + nap neve a fejlécben
-                    $dayNum = date('j', strtotime($selectedDate));
-                    $weekdays = ['V','H','K','Sze','Cs','P','Szo'];
-                    $dayName = $weekdays[date('N', strtotime($selectedDate)) % 7];
-                ?>
-                <h2>
-                    <a href="?date=<?= $prevDate ?>&view=day&year=<?= $prevYear ?>&month=<?= $prevMonth ?>">&laquo;</a>
-                    <?= $dayName ?> <?= $dayNum ?>
-                    <a href="?date=<?= $nextDate ?>&view=day&year=<?= $nextYear ?>&month=<?= $nextMonth ?>">&raquo;</a>
-                </h2>
-                <?php
-
-                    function timeToMinutes($time) {
-                        list($h, $m) = explode(':', $time);
-                        return $h * 60 + $m;
-                    }
-
-                    foreach ($events as $i => $event) {
-                        $start = date('H:i', strtotime($event['kezdet']));
-                        $end   = date('H:i', strtotime($event['vege']));
-
-                        $events[$i]['start'] = $start;
-                        $events[$i]['end']   = $end;
-
-                        $events[$i]['startMin'] = timeToMinutes($start);
-                        $events[$i]['endMin']   = timeToMinutes($end);
-
-                        $events[$i]['column'] = 0;
-                        $events[$i]['totalColumns'] = 1;
-                    }
-
-
-                    /* ======== ÜTKÖZÉSKEZELÉS ======== */
-                        $totalColumns = max(1, $event['totalColumns'] ?? 1);
-                        $column = max(0, $event['column'] ?? 0);
-                        
-                        $width = 100 / $totalColumns;
-                        $left = $column * $width;
-
-                    for ($i = 0; $i < count($events); $i++) {
-
-                        $events[$i]['column'] = 0;
-                        $events[$i]['totalColumns'] = 1;
-
-                        for ($j = 0; $j < count($events); $j++) {
-
-                            if ($i == $j) continue;
-
-                            if (
-                                $events[$i]['startMin'] < $events[$j]['endMin'] &&
-                                $events[$i]['endMin'] > $events[$j]['startMin']
-                            ) {
-
-                                $events[$i]['totalColumns']++;
-                            }
-                        }
-                    }
-
-                    /* ======== AKTUÁLIS IDŐ ======== */
-                    $currentTop = date('G') * 60 + date('i');
-                ?>
-
+        <!-- NAPI NÉZET -->
+        <div id="dayView" class="calendar-view" style="<?= $view == 'day' ? '' : 'display:none;' ?>" ondrop="dropHandler(event)" ondragover="dragoverHandler(event)">
+            <?php
+                $prevDate = date('Y-m-d', strtotime("$selectedDate -1 day"));
+                $nextDate = date('Y-m-d', strtotime("$selectedDate +1 day"));
+                $dayNum = date('j', strtotime($selectedDate));
+                $weekdays = ['V','H','K','Sze','Cs','P','Szo'];
+                $dayName = $weekdays[date('N', strtotime($selectedDate)) % 7];
+            ?>
+            <h2>
+                <a href="?date=<?= $prevDate ?>&view=day">&laquo;</a>
+                <?= $dayName ?> <?= $dayNum ?>
+                <a href="?date=<?= $nextDate ?>&view=day">&raquo;</a>
+            </h2>
             <div class="day-view">
                 <div class="time-column">
-                    <?php
-                    for ($h=0; $h<24; $h++) {
-                        echo "<div class='time-slot'><span>" . sprintf("%02d:00", $h) . "</span></div>";
-                    }
-                    ?>
+                    <?php for ($h=0; $h<24; $h++) echo "<div class='time-slot'><span>" . sprintf("%02d:00", $h) . "</span></div>"; ?>
                 </div>
                 <div class="calendar-grid">
-                    <?php
-                    for ($h=0; $h<24; $h++) {
-                        echo "<div class='hour-line'></div>";
-                    }
-                    ?>
-
-                    <!-- Aktuális idő -->
+                    <?php for ($h=0; $h<24; $h++) echo "<div class='hour-line'></div>"; ?>
                     <?php if ($selectedDate === date('Y-m-d')): ?>
-                        <div class="current-time" style="top: <?= $currentTop ?>px;"></div>
+                        <div class="current-time" style="top: <?= date('G')*60 + date('i') ?>px;"></div>
                     <?php endif; ?>
 
-                    <!-- Események -->
-                    <?php if (!empty($events)): foreach ($events as $event):
-
+                    <?php foreach ($events as $event): 
                         $top = $event['startMin'];
                         $height = $event['endMin'] - $event['startMin'];
-                    
                         $width = 100 / $event['totalColumns'];
                         $left = $event['column'] * $width;
                     ?>
-
-                <div class="event"
-                    style="
-                    top:<?= $top ?>px;
-                    height:<?= $height ?>px;
-                    width:<?= $width ?>%;
-                    left:<?= $left ?>%;
-                    background: <?= $event['szin'] ?? '#4caf50' ?>;
-                    ">
-                    <?= htmlspecialchars($event['nev']) ?><br>
-                    <?= $event['start'] ?> - <?= $event['end'] ?>
-                </div> 
-                    <?php endforeach; endif; ?>
-                    <?php if (!empty($tasks)): foreach ($tasks as $task): ?>
-                        <div class="task">
-                            ✔ <?= htmlspecialchars($task['nev']) ?><br>
-                            📅 <?= $task['hatarido'] ?>
-                        </div>
-                    <?php endforeach; endif; ?>
+                        <div class="event" style="top:<?= $top ?>px; height:<?= $height ?>px; width:<?= $width ?>%; left:<?= $left ?>%; background: <?= $event['szin'] ?? '#4caf50' ?>;">
+                            <?= htmlspecialchars($event['nev']) ?><br><?= $event['start'] ?> - <?= $event['end'] ?>
+                        </div> 
+                    <?php endforeach; ?>
+                    
+                    <?php foreach ($tasks as $task): ?>
+                        <div class="task">✔ <?= htmlspecialchars($task['nev']) ?><br>📅 <?= $task['hatarido'] ?></div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
-            <?php
-                // heti nézet számítások + lapozás
-                $weekStart = date('Y-m-d', strtotime('monday this week', strtotime($selectedDate)));
-                $weekEnd   = date('Y-m-d', strtotime('sunday this week', strtotime($selectedDate)));
 
+        <!-- HETI NÉZET -->
+        <div id="weekView" class="calendar-view" style="<?= $view == 'week' ? '' : 'display:none;' ?>">
+            <?php
                 $prevWeek = date('Y-m-d', strtotime("$weekStart -7 days"));
                 $nextWeek = date('Y-m-d', strtotime("$weekStart +7 days"));
-
-                $stmt = $pdo->prepare("
-                    SELECT e.*, k.szin 
-                    FROM esemeny e
-                    INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-                    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
-                    ORDER BY e.kezdet
-                ");
-
-                $stmt->execute([$weekStart, $weekEnd, $_SESSION['user_id']]);
-                $weekEvents = $stmt->fetchAll(PDO::FETCH_ASSOC);
             ?>
-
-            <div id="weekView" class="calendar-view" style="display:none;">
+            <h2>
+                <a href="?date=<?= $prevWeek ?>&view=week">&laquo;</a>
+                <?= $weekStart ?> - <?= $weekEnd ?>
+                <a href="?date=<?= $nextWeek ?>&view=week">&raquo;</a>
+            </h2>
+            <div class="week-grid">
                 <?php
-                    $prevWeekMonth = date('n', strtotime($prevWeek));
-                    $prevWeekYear  = date('Y', strtotime($prevWeek));
-                    $nextWeekMonth = date('n', strtotime($nextWeek));
-                    $nextWeekYear  = date('Y', strtotime($nextWeek));
+                $dayNames = ['H','K','Sze','Cs','P','Szo','V'];
+                for ($d = 0; $d < 7; $d++):
+                    $curr = date('Y-m-d', strtotime("$weekStart +$d days"));
+                    $isToday = ($curr === date('Y-m-d')) ? ' today' : '';
                 ?>
-                <h2>
-                    <a href="?date=<?= $prevWeek ?>&view=week&year=<?= $prevWeekYear ?>&month=<?= $prevWeekMonth ?>">&laquo;</a>
-                    <?= date('Y-m-d', strtotime($weekStart)) ?> - <?= date('Y-m-d', strtotime($weekEnd)) ?>
-                    <a href="?date=<?= $nextWeek ?>&view=week&year=<?= $nextWeekYear ?>&month=<?= $nextWeekMonth ?>">&raquo;</a>
-                </h2>
-                <div class="week-grid">
-                    <?php
-                    $dayNames = ['H','K','Sze','Cs','P','Szo','V'];
-                    $todayDate = date('Y-m-d');
-                    for ($d = 0; $d < 7; $d++):
-                        $currentDay = date('Y-m-d', strtotime("$weekStart +$d days"));
-                        $isToday = $currentDay === $todayDate ? ' today' : '';
-                    ?>
-                        <div class="week-day" data-date="<?= $currentDay ?>">
-                            <div class="week-day-header">
-                                <?= $dayNames[$d] ?> <span class="week-day-num<?= $isToday ?>"><?= date('d', strtotime($currentDay)) ?></span>
-                            </div>
-                        <?php                  
+                    <div class="week-day" data-date="<?= $curr ?>">
+                        <div class="week-day-header"><?= $dayNames[$d] ?> <span class="week-day-num<?= $isToday ?>"><?= date('d', strtotime($curr)) ?></span></div>
+                        <?php 
                         $count = 0;
-
-                        foreach ($weekEvents as $event):
-                        
-                            $event_nap = date('Y-m-d', strtotime($event['kezdet']));
-                        
-                            if ($event_nap == $currentDay):
-                            
-                                if ($count >= 4) {
-                                    echo "<div class='week-event'>+ több...</div>";
-                                    break;
-                                }
-                            
-                                $count++;
+                        foreach ($weekEvents as $we):
+                            if (date('Y-m-d', strtotime($we['kezdet'])) == $curr):
+                                if (++$count > 4) { echo "<div class='week-event'>+ több...</div>"; break; }
                         ?>
-                                <div class="week-event"
-                                     style="background:<?= $event['szin'] ?>;">
-                                    <?= htmlspecialchars($event['nev']) ?><br>
-                                    <?= date('H:i', strtotime($event['kezdet'])) ?>
-                                </div>
-                            <?php endif; endforeach; ?>
-                                
-                        </div>
-                    <?php endfor; ?>
-                                
-                </div>
+                            <div class="week-event" style="background:<?= $we['szin'] ?>;"><?= htmlspecialchars($we['nev']) ?><br><?= date('H:i', strtotime($we['kezdet'])) ?></div>
+                        <?php endif; endforeach; ?>
+                    </div>
+                <?php endfor; ?>
             </div>
+        </div>
 
-            <?php
-                // hónap nézet adatok – a navigációhoz használt $year/$month értékekre építünk
-                $displayYear  = $year;
-                $displayMonth = $month;
+        <!-- HAVI NÉZET -->
+        <div id="monthView" class="calendar-view" style="<?= $view == 'month' ? '' : 'display:none;' ?>">
+            <h2>
+                <a href="?year=<?= $prevYear ?>&month=<?= $prevMonth ?>&view=month">&laquo;</a>
+                <?= $honapok[$month] ?> <?= $year ?>
+                <a href="?year=<?= $nextYear ?>&month=<?= $nextMonth ?>&view=month">&raquo;</a>
+            </h2>
+            <div class="month-grid">
+                <?php
+                $firstDayOfMonth = date('N', strtotime($monthStart));
+                $totalDays = date('t', strtotime($monthStart));
+                
+                // Előző hónap
+                $prevMoDays = date('t', strtotime('-1 month', strtotime($monthStart)));
+                for ($i = $firstDayOfMonth - 1; $i >= 1; $i--) {
+                    $d = $prevMoDays - $i + 1;
+                    $date = date('Y-m-d', strtotime("-{$i} days", strtotime($monthStart)));
+                    echo "<div class='month-day other-month' data-date='$date'>$d</div>";
+                }
 
-                // a hónap első napjának timestampje
-                $monthStartTs = strtotime("$displayYear-$displayMonth-01");
-                $monthEndStr  = date('Y-m-t', $monthStartTs); // ez egy string, ne küldjük vissza újabb date()-nak
+                // Aktuális hónap
+                for ($day = 1; $day <= $totalDays; $day++):
+                    $curr = date('Y-m-d', strtotime($monthStart . " + " . ($day-1) . " days"));
+                    $cls = ($curr === date('Y-m-d')) ? ' today' : '';
+                ?>
+                    <div class="month-day<?= $cls ?>" data-date="<?= $curr ?>">
+                        <div class="month-day-number<?= $cls ?>"><?= $day ?></div>
+                        <?php foreach ($monthEvents as $me): if (date('Y-m-d', strtotime($me['kezdet'])) == $curr): ?>
+                            <div class="month-event" style="background:<?= $me['szin'] ?>;"><?= htmlspecialchars($me['nev']) ?></div>
+                        <?php endif; endforeach; ?>
+                    </div>
+                <?php endfor; ?>
 
-                $stmt = $pdo->prepare("
-                    SELECT e.*, k.szin 
-                    FROM esemeny e
-                    INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-                    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
-                    ORDER BY e.kezdet
-                ");
-                $stmt->execute([date('Y-m-d', $monthStartTs), $monthEndStr, $_SESSION['user_id']]);
-                $monthEvents = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                $firstDayOfMonth = date('N', $monthStartTs);
-                $totalDays        = date('t', $monthStartTs);
-            ?>
-
-            <div id="monthView" class="calendar-view" style="display:none;">
-                <h2>
-                    <a href="?year=<?= $prevYear ?>&month=<?= $prevMonth ?>&view=month">&laquo;</a>
-                    <?= $honapok[$displayMonth] ?> <?= $displayYear ?>
-                    <a href="?year=<?= $nextYear ?>&month=<?= $nextMonth ?>&view=month">&raquo;</a>
-                </h2>
-                <div class="month-grid">
-
-                    <?php
-                    // előző hónap napjai (helyesített strtotime használattal)
-                    $prevMonthDays = date('t', strtotime('-1 month', $monthStartTs));
-                    $cntPrev = $firstDayOfMonth - 1;
-                    for ($i = $cntPrev; $i >= 1; $i--) {
-                        $dayNum = $prevMonthDays - $i + 1;
-                        $otherDate = date('Y-m-d', strtotime("-{$i} days", $monthStartTs));
-                        // nem dekoráljuk a szürke cellákat, még ha az aktuális napra esnek
-                        // Javascript kezeli a kattintást, ezért nincs szükség hivatkozásra
-                        echo "<div class='month-day other-month' data-date='$otherDate'>$dayNum</div>";
-                    }
-
-                    // jelen hónap napjai
-                    for ($day = 1; $day <= $totalDays; $day++):
-                        $currentDate = date('Y-m-d', strtotime('+'.($day-1).' days', $monthStartTs));
-                        $today = date('Y-m-d');
-                        $cls = $currentDate === $today ? ' today' : '';
-                    ?>
-                        <div class="month-day<?= $cls ?>" data-date="<?= $currentDate ?>">
-                            <?php $numClass = ($currentDate === date('Y-m-d')) ? ' today' : ''; ?>
-                            <div class="month-day-number<?= $numClass ?>"><?= $day ?></div>
-
-                            <?php foreach ($monthEvents as $event):
-                                if (date('Y-m-d', strtotime($event['kezdet'])) == $currentDate):
-                            ?>
-
-                            <div class="month-event"
-                                 data-full="<?= htmlspecialchars($event['nev']) ?>"
-                                 style="background:<?= $event['szin'] ?>;">
-                                <?= htmlspecialchars($event['nev']) ?>
-                            </div>
-
-                            <?php endif; endforeach; ?>
-
-                        </div>
-                    <?php endfor; ?>
-
-                    <?php
-                    // következő hónap napjai
-                    $filled = $cntPrev + $totalDays;
-                    $cntNext = (7 - ($filled % 7)) % 7;
-                    for ($i = 1; $i <= $cntNext; $i++) {
-                        $otherDate = date('Y-m-d', strtotime('+'.($totalDays + $i - 1).' days', $monthStartTs));
-                        // ugyanez: nem adjuk hozzá a 'today' osztályt a következő hónap napjaihoz
-                        echo "<div class='month-day other-month' data-date='$otherDate'>$i</div>";
-                    }
-                    ?>
-
-                </div>
+                <?php
+                // Következő hónap
+                $filled = ($firstDayOfMonth - 1) + $totalDays;
+                $nextCnt = (7 - ($filled % 7)) % 7;
+                for ($i = 1; $i <= $nextCnt; $i++) {
+                    $date = date('Y-m-d', strtotime($monthEnd . " + $i days"));
+                    echo "<div class='month-day other-month' data-date='$date'>$i</div>";
+                }
+                ?>
             </div>
-        </div> 
+        </div>
+    </div>
 </div>
 
-    <script>
-        const openBtn = document.getElementById("menuBtn");
-        const closeBtn = document.getElementById("closeSidebarBtn");
-        const sidebar = document.getElementById("sidebar");
+<script>
+    const sidebar = document.getElementById("sidebar");
+    const menuBtn = document.getElementById("menuBtn");
+    const closeSidebarBtn = document.getElementById("closeSidebarBtn");
 
-        openBtn.addEventListener("click", () => {
-          sidebar.classList.remove("close");
-        });
+    menuBtn.addEventListener("click", () => {
+        if (window.innerWidth > 1024) {
+            sidebar.classList.toggle("close");
+        } else {
+            sidebar.classList.toggle("active");
+        }
+    });
+
+    closeSidebarBtn.addEventListener("click", () => {
+        if (window.innerWidth > 1024) {
+            sidebar.classList.add("close");
+        } else {
+            sidebar.classList.remove("active");
+        }
+    });
+
+    function switchView(view) {
+        document.querySelectorAll('.calendar-view').forEach(el => el.style.display = 'none');
+        const active = document.getElementById(view + 'View');
+        if (active) active.style.display = 'block';
         
-        closeBtn.addEventListener("click", () => {
-          sidebar.classList.add("close");
-        });
-        
-        function switchView(view) {
-            const views = ['dayView', 'weekView', 'monthView'];
+        // Frissítsük az URL-t view paraméterrel újratöltés nélkül, vagy navigáljunk
+        const params = new URLSearchParams(window.location.search);
+        params.set('view', view);
+        window.history.replaceState({}, '', '?' + params.toString());
+    }
 
-            views.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.style.display = 'none';
-            });
+    document.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view') || 'month';
+        switchView(view);
 
-            const active = document.getElementById(view + 'View');
-            if (active) active.style.display = 'block';
+        if (view === 'day') {
+            const grid = document.querySelector('.calendar-grid');
+            const currentTimeEl = document.querySelector('.current-time');
+            if (grid && currentTimeEl) grid.scrollTop = currentTimeEl.offsetTop - grid.clientHeight/2;
         }
 
-        // ha URL-ben van view paraméter, válasszuk ki a megfelelő nézetet
-        document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            const view = params.get('view');
-            if (view) switchView(view);
-
-            // nap nézetnél, ha a kiválasztott dátum ma, gördítsük középre a piros vonalat
-            if (view === 'day') {
-                const selectedDate = params.get('date');
-                const today = new Date().toISOString().slice(0,10);
-                if (selectedDate === today) {
-                    const grid = document.querySelector('.calendar-grid');
-                    const currentTimeEl = document.querySelector('.current-time');
-                    if (grid && currentTimeEl) {
-                        const top = currentTimeEl.offsetTop; // relatív a gridhez
-                        grid.scrollTop = top - grid.clientHeight/2;
-                    }
-                }
-            }
-        });
-
-        // cell-click navigation for week/month/mini calendar
+        // Cell navigáció
         document.addEventListener('click', (e) => {
             const cell = e.target.closest('.week-day, .month-day, .days .day');
-            if (!cell) return;
-
-            // prefer data-date attribute; dataset may sometimes be undefined
-            let dateVal = cell.getAttribute('data-date') || '';
-            if (!dateVal && cell.dataset) {
-                dateVal = cell.dataset.date || '';
+            if (cell && cell.dataset.date) {
+                window.location = '?date=' + cell.dataset.date + '&view=day';
             }
-
-            // if we still don't have a date, we can't navigate
-            if (!dateVal) return;
-
-            const [y, m] = dateVal.split('-');
-            const url = '?date=' + dateVal + '&view=day' + '&year=' + y + '&month=' + m;
-            window.location = url;
         });
 
-        //Dropdown kezelés
-        document.addEventListener('DOMContentLoaded', () => {                     
-            const dropdowns = document.querySelectorAll('.dropdown, .dropdown2, .dropdown3');
-
-            dropdowns.forEach(dropdown => {
-                const input = dropdown.querySelector('.textBox');
-                const optionBox = dropdown.querySelector('.option');
-
-                if (!input || !optionBox) return;
-                // NYITÁS / ZÁRÁS
-                input.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    // bezár minden mást
-                    dropdowns.forEach(d => d.classList.remove('active'));
-                    dropdown.classList.toggle('active');
-
-                    const rect = input.getBoundingClientRect();
-                    const spaceBelow = window.innerHeight - rect.bottom;
-                    // egyszerűsített pozicionálás
-                    if (spaceBelow < optionBox.offsetHeight) {
-                        optionBox.style.top = 'auto';
-                        optionBox.style.bottom = input.offsetHeight + 'px';
-                    } else {
-                        optionBox.style.top = input.offsetHeight + 'px';
-                        optionBox.style.bottom = 'auto';
-                    }
+        // Dropdownok
+        document.querySelectorAll('.dropdown, .dropdown2, .dropdown3').forEach(dropdown => {
+            dropdown.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (e.target.closest('.option')) return;
+                document.querySelectorAll('.dropdown, .dropdown2, .dropdown3').forEach(d => { if(d !== dropdown) d.classList.remove('active'); });
+                dropdown.classList.toggle('active');
+            });
+            dropdown.querySelectorAll('.option div').forEach(opt => {
+                opt.addEventListener('click', (e) => {
+                    const form = opt.closest('form');
+                    if (form) form.submit();
                 });
-                // KIVÁLASZTÁS
-                optionBox.querySelectorAll('div').forEach(option => {
-                    option.addEventListener('click', () => {
-                        dropdown.classList.remove('active');
-                    });
-                });
-
-            });
-            // KATTINTÁS KÍVÜL → BEZÁR
-            document.addEventListener('click', () => {
-                dropdowns.forEach(d => d.classList.remove('active'));
             });
         });
-
-        //Modal kezelés
-        document.addEventListener('DOMContentLoaded', () => {
-            const modals = {
-                "Esemény": document.getElementById('eventModal'),
-                "Teendő": document.getElementById('taskModal')
-            };
-
-            document.querySelectorAll('.option div').forEach(opt => {
-                opt.onclick = () => {
-                    const modal = modals[opt.innerText.trim()];
-                    if (modal) modal.style.display = 'block';
-                };
-            });
-
-            document.querySelectorAll('.close-modal').forEach(btn => {
-                btn.onclick = () => {
-                    document.querySelectorAll('.custom-modal-overlay')
-                        .forEach(m => m.style.display = 'none');
-                };
-            });
-
-            window.onclick = (e) => {
-                if (e.target.classList.contains('custom-modal-overlay')) {
-                    e.target.style.display = 'none';
-                }
-            };
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.active').forEach(d => d.classList.remove('active'));
+            // sidebar.classList.remove("active"); // Don't close sidebar on every click
         });
 
-//DARKMODE_____________________________________________________________________________________________________________________________
-                                    
-const darkModeToggle = document.getElementById('darkModeToggle');
-const body = document.body;
-const icon = darkModeToggle.querySelector('i');
+        // Modálok
+        const modals = { "Esemény": document.getElementById('eventModal'), "Teendő": document.getElementById('taskModal') };
+        document.querySelectorAll('.option div').forEach(opt => {
+            opt.onclick = () => { if (modals[opt.innerText.trim()]) modals[opt.innerText.trim()].style.display = 'block'; };
+        });
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.onclick = () => document.querySelectorAll('.custom-modal-overlay').forEach(m => m.style.display = 'none');
+        });
+        window.onclick = (e) => { if (e.target.classList.contains('custom-modal-overlay')) e.target.style.display = 'none'; };
+    });
 
-// 1. FUNKCIÓ A SÜTI MENTÉSÉHEZ (Ez teszi elérhetővé minden mappában)
-function setStyleCookie(theme) {
-    // 30 napra mentjük el, a "path=/" miatt minden localhost mappában látszódni fog
-    document.cookie = "theme=" + theme + "; max-age=" + (86400 * 30) + "; path=/";
-}
+    // draganddrop.js
 
-// 2. BETÖLTÉSKOR: Ellenőrizzük a sütit (vagy marad a localStorage is biztonság kedvéért)
-const savedTheme = document.cookie.split('; ').find(row => row.startsWith('theme='))?.split('=')[1] 
-                   || localStorage.getItem('theme');
+    let draggedEvent = null;
 
-if (savedTheme === 'dark') {
-    body.classList.add('dark-mode');
-    if(icon) icon.classList.replace('fa-moon', 'fa-sun');
-}
+    function dragstartHandler(e) {
+        draggedEvent = e.target;
 
-// 3. KATTINTÁSKOR: Mentünk sütibe ÉS localstorage-ba is
-darkModeToggle.addEventListener('click', () => {
-    body.classList.toggle('dark-mode');
-    
-    if (body.classList.contains('dark-mode')) {
-        localStorage.setItem('theme', 'dark');
-        setStyleCookie('dark'); // Mentés minden mappának
-        if(icon) icon.classList.replace('fa-moon', 'fa-sun');
-    } else {
-        localStorage.setItem('theme', 'light');
-        setStyleCookie('light'); // Mentés minden mappának
-        if(icon) icon.classList.replace('fa-sun', 'fa-moon');
+        // Ha még nincs elmentve az eredeti állapot, akkor mentjük
+        if (!draggedEvent.dataset.originalSaved) {
+            const lines = draggedEvent.innerHTML.split('<br>');
+            const timeText = lines[1]; // pl.: "08:30 - 09:30"
+            const [startTime, endTime] = timeText.split(' - ');
+
+            draggedEvent.dataset.originalTop = draggedEvent.style.top;
+            draggedEvent.dataset.originalHeight = draggedEvent.style.height;
+            draggedEvent.dataset.originalStart = startTime.trim();
+            draggedEvent.dataset.originalEnd = endTime.trim();
+            draggedEvent.dataset.originalHTML = draggedEvent.innerHTML;
+            draggedEvent.dataset.originalSaved = 'true'; // jelzés, hogy már mentettük az alaphelyzetet
+        }
+
+        e.dataTransfer.effectAllowed = "move";
     }
-});
+
+    function dropHandler(e) {
+        e.preventDefault();
+        if (!draggedEvent) return;
+
+        const grid = document.querySelector('.calendar-grid');
+        const rect = grid.getBoundingClientRect();
+        const y = e.clientY - rect.top + grid.scrollTop;
+
+        // megtartjuk az esemény magasságát
+        const height = draggedEvent.offsetHeight;
+
+        // új top érték beállítása
+        draggedEvent.style.top = y + "px";
+
+        // új kezdő és végidő számítása
+        const startMinutes = Math.round(y);
+        const endMinutes = startMinutes + height;
+
+        const startHours = Math.floor(startMinutes / 60);
+        const startMins = startMinutes % 60;
+        const endHours = Math.floor(endMinutes / 60);
+        const endMins = endMinutes % 60;
+
+        const newStart = `${startHours.toString().padStart(2,'0')}:${startMins.toString().padStart(2,'0')}`;
+        const newEnd = `${endHours.toString().padStart(2,'0')}:${endMins.toString().padStart(2,'0')}`;
+
+        // frissítjük a szöveget
+        const lines = draggedEvent.innerHTML.split('<br>');
+        lines[1] = `${newStart} - ${newEnd}`;
+        draggedEvent.innerHTML = lines[0] + '<br>' + lines[1] + `<button class="undo-btn">Vissza</button>`;
+
+        // vissza gomb – mindig az eredeti alaphelyzetre állít
+        const undoBtn = draggedEvent.querySelector('.undo-btn');
+        undoBtn.addEventListener('click', (evt) => {
+            evt.stopPropagation();
+            draggedEvent.style.top = draggedEvent.dataset.originalTop;
+            draggedEvent.style.height = draggedEvent.dataset.originalHeight;
+            draggedEvent.innerHTML = draggedEvent.dataset.originalHTML;
+        });
+
+        // itt lehet AJAX hívás a szerver frissítésére, pl. update_event.php
+        // fetch('update_event.php', { method:'POST', body: JSON.stringify({id: eventId, newStart, newEnd}) })
+    }
+
+    function dragoverHandler(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    }
+
+    //DARKMODE
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const body = document.body;
+    const icon = darkModeToggle.querySelector('i');
+
+    // 1. FUNKCIÓ A SÜTI MENTÉSÉHEZ (Ez teszi elérhetővé minden mappában)
+    function setStyleCookie(theme) {
+        // 30 napra mentjük el, a "path=/" miatt minden localhost mappában látszódni fog
+        document.cookie = "theme=" + theme + "; max-age=" + (86400 * 30) + "; path=/";
+    }
+
+    // 2. BETÖLTÉSKOR: Ellenőrizzük a sütit (vagy marad a localStorage is biztonság kedvéért)
+    const savedTheme = document.cookie.split('; ').find(row => row.startsWith('theme='))?.split('=')[1] 
+                       || localStorage.getItem('theme');
+
+    if (savedTheme === 'dark') {
+        body.classList.add('dark-mode');
+        if(icon) icon.classList.replace('fa-moon', 'fa-sun');
+    }
+
+    // 3. KATTINTÁSKOR: Mentünk sütibe ÉS localstorage-ba is
+    darkModeToggle.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+                            
+        if (body.classList.contains('dark-mode')) {
+            localStorage.setItem('theme', 'dark');
+            setStyleCookie('dark'); // Mentés minden mappának
+            if(icon) icon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+            localStorage.setItem('theme', 'light');
+            setStyleCookie('light'); // Mentés minden mappának
+            if(icon) icon.classList.replace('fa-sun', 'fa-moon');
+        }
+    });
 </script>
 
-<!-- ESEMÉNY MODAL -->
+<!-- MODÁLOK -->
 <div id="eventModal" class="custom-modal-overlay">
     <div class="modal-content">
-        <div class="modal-header">
-            <h3>Új esemény</h3>
-            <button class="close-modal">&times;</button>
-        </div>
+        <div class="modal-header"><h3>Új esemény</h3><button class="close-modal">&times;</button></div>
         <form method="POST">
             <div class="modal-body">
                 <input type="text" name="nev" placeholder="Esemény neve" required>
                 <textarea name="leiras" placeholder="Leírás"></textarea>
-                <label>Kezdet</label>
-                <input type="datetime-local" name="kezdet" required>
-                <label>Vége</label>
-                <input type="datetime-local" name="vege">
-                <label>Kategória ID</label>
-                <input type="number" name="esemenykat_id">
+                <label>Kezdet</label><input type="datetime-local" name="kezdet" required>
+                <label>Vége</label><input type="datetime-local" name="vege">
+                <label>Kategória ID</label><input type="number" name="esemenykat_id">
             </div>
-            <div class="modal-footer">
-                <button type="submit" class="save-btn" name="save_event">Mentés</button>
-            </div>
+            <div class="modal-footer"><button type="submit" class="save-btn" name="save_event">Mentés</button></div>
         </form>
     </div>
 </div>
 
-<!-- TEENDŐ MODAL -->
 <div id="taskModal" class="custom-modal-overlay">
     <div class="modal-content">
-        <div class="modal-header">
-            <h3>Új teendő</h3>
-            <button class="close-modal">&times;</button>
-        </div>
+        <div class="modal-header"><h3>Új teendő</h3><button class="close-modal">&times;</button></div>
         <form method="POST">
             <div class="modal-body">
                 <input type="text" name="nev" placeholder="Feladat neve" required>
                 <textarea name="leiras" placeholder="Leírás"></textarea>
-                <label>Határidő</label>
-                <input type="date" name="hatarido">
+                <label>Határidő</label><input type="date" name="hatarido">
             </div>
-            <div class="modal-footer">
-                <button type="submit" class="save-btn" name="save_task">Hozzáadás</button>
-            </div>
+            <div class="modal-footer"><button type="submit" class="save-btn" name="save_task">Hozzáadás</button></div>
         </form>
     </div>
 </div>

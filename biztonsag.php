@@ -1,6 +1,28 @@
 <?php
-
+/* =========================SESSION + DB (MYSQLI)========================= */
 session_start();
+
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "calendar";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Hiba a kapcsolódáskor: " . $conn->connect_error);
+}
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: log-reg.php");
+    exit();
+}
+
+$userId = $_SESSION['user_id'];
+
+$success = "";
+$error = "";
+
 
 $lang = $_SESSION['lang'] ?? 'hun';
 
@@ -12,6 +34,46 @@ if (!file_exists($langFile)) {
 
 $translations = include $langFile;
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_FILES['profilkep']) && is_uploaded_file($_FILES['profilkep']['tmp_name'])) {
+
+        $fileTmp = $_FILES['profilkep']['tmp_name'];
+        $fileName = basename($_FILES['profilkep']['name']);
+        $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+
+        if (in_array($fileExt, $allowed)) {
+            $uploadDir = "Profilkepek/";
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $newFileName = "user_" . $userId . "_" . time() . "." . $fileExt;
+            $targetFile = $uploadDir . $newFileName;
+
+            if (move_uploaded_file($fileTmp, $targetFile)) {
+                $stmt = $conn->prepare("UPDATE felhasznalo SET profilkep = ? WHERE id = ?");
+                $stmt->bind_param("si", $newFileName, $userId);
+
+                if ($stmt->execute()) {
+                    $_SESSION["user_profilkep"] = $newFileName;
+                    $message = "Profilkép frissítve!";
+                } else {
+                    $message = "Adatbázis hiba.";
+                }
+
+                $stmt->close();
+
+            } else {
+                $message = "Feltöltési hiba.";
+            }
+
+        } else {
+            $message = "Csak képek engedélyezettek (jpg, png, gif).";
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -20,6 +82,7 @@ $translations = include $langFile;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="profil.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <script src="setting.js" defer></script>
     <title>Biztonság</title>
 </head>
@@ -39,7 +102,7 @@ $translations = include $langFile;
             <a href="profil.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/home.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-house"></i>
                     <div class="menupontSpan">
                         <span>Kezdőlap</span>
                     </div>     
@@ -50,7 +113,7 @@ $translations = include $langFile;
             <a href="szemelyes_adatok.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/user.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-user"></i>
                     <div class="menupontSpan">
                         <span>Személyes adatok</span>
                     </div>
@@ -61,7 +124,7 @@ $translations = include $langFile;
             <a href="biztonsag.php" class="menupont">
 
                 <div class="menupontDiv">
-                    <img src="icons/lock.png" alt="anyad" class="icon">
+                    <i class="fa-solid fa-lock"></i>
                     <div class="menupontSpan">
                         <span>Biztonság</span>
                     </div>
@@ -71,21 +134,20 @@ $translations = include $langFile;
             <br>
         </nav>
     </div>
-    
-    <div class="menu2">
-            <h3><?= $translations['szoveg4']?></h3>
-            <hr>
-            <div class="beltartalom">
-                <label><?= $translations['profilelabel']?></label>
-                <form method="post">
-                    <input type="text" placeholder="<?= $translations['place1']?>">
-                    <input type="text" placeholder="<?= $translations['place3']?>">
-                    <input type="password" placeholder="<?= $translations['place2']?>">
-                    <button type="button"><?= $translations['profile']?></button>
-                    <button id="adat_submit"><?= $translations['profile2']?></button>
-                </form>
-            </div>
-            <hr>
-        </div>
+
+<div style="text-align:center; margin-bottom:20px;">
+    <div class="profile-icon" style="margin:auto;">
+        <?php if (!empty($_SESSION["user_profilkep"])): ?>
+            <img src="uploads/<?php echo $_SESSION["user_profilkep"]; ?>">
+        <?php else: ?>
+            <?php echo strtoupper($_SESSION["user_name"][0]); ?>
+        <?php endif; ?>
+    </div>
+    <form method="POST" enctype="multipart/form-data" style="margin-top:10px;">
+        <input type="file" name="profilkep" required>
+        <br><br>
+        <button type="submit">Profilkép feltöltése</button>
+    </form>
+</div>
 </body>
 </html>
