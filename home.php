@@ -186,20 +186,30 @@ unset($event);
 
 $conn = new mysqli("localhost", "root", "", "calendar");
 
-$id = $_POST['id'] ?? null;
-$start = $_POST['start'] ?? null;
-$end = $_POST['end'] ?? null;
-$date = $_POST['date'] ?? null;
+if ($conn->connect_error) {
+die("DB hiba: " . $conn->connect_error);
+}
 
-$userId = $_SESSION['user_id'];
+echo "POST: ";
+print_r($_POST);
 
+$id = $_POST['id'] ?? 0;
+$start = $_POST['start'] ?? '';
+$end = $_POST['end'] ?? '';
+$date = $_POST['date'] ?? '';
 
 $startFull = $date . " " . $start . ":00";
 $endFull = $date . " " . $end . ":00";
 
-$stmt = $conn->prepare("UPDATE esemeny SET kezdet=?, vege=? WHERE id=? AND felhasznalo_id=?");
-$stmt->bind_param("ssii", $startFull, $endFull, $id, $userId);
-$stmt->execute();
+$sql = "UPDATE esemeny
+SET kezdet='$startFull', vege='$endFull'
+WHERE id=$id";
+
+if ($conn->query($sql)) {
+echo " | OK | rows: " . $conn->affected_rows;
+} else {
+echo " | ERROR: " . $conn->error;
+}
 
 ?>
 
@@ -547,75 +557,41 @@ $stmt->execute();
 
     let draggedEvent = null;
 
-    function dragstartHandler(e) {
-        draggedEvent = e.target;
+function dragstartHandler(e) {
+    draggedEvent = e.target;
+}
 
-        // Ha még nincs elmentve az eredeti állapot, akkor mentjük
-        if (!draggedEvent.dataset.originalSaved) {
-            const lines = draggedEvent.innerHTML.split('<br>');
-            const timeText = lines[1]; // pl.: "08:30 - 09:30"
-            const [startTime, endTime] = timeText.split(' - ');
+function dragoverHandler(e) {
+    e.preventDefault();
+}
 
-            draggedEvent.dataset.originalTop = draggedEvent.style.top;
-            draggedEvent.dataset.originalHeight = draggedEvent.style.height;
-            draggedEvent.dataset.originalStart = startTime.trim();
-            draggedEvent.dataset.originalEnd = endTime.trim();
-            draggedEvent.dataset.originalHTML = draggedEvent.innerHTML;
-            draggedEvent.dataset.originalSaved = 'true'; // jelzés, hogy már mentettük az alaphelyzetet
-        }
+function dropHandler(e) {
+    e.preventDefault();
 
-        e.dataTransfer.effectAllowed = "move";
-    }
+    if (!draggedEvent) return;
 
-    function dropHandler(e) {
-        e.preventDefault();
-        if (!draggedEvent) return;
+    const id = draggedEvent.dataset.eventId;
+    const date = draggedEvent.dataset.date;
 
-        const grid = document.querySelector('.calendar-grid');
-        const rect = grid.getBoundingClientRect();
-        const y = e.clientY - rect.top + grid.scrollTop;
+    console.log("ID:", id, "DATE:", date);
 
-        // megtartjuk az esemény magasságát
-        const height = draggedEvent.offsetHeight;
+    const newStart = "10:00";
+    const newEnd = "11:00";
 
-        // új top érték beállítása
-        draggedEvent.style.top = y + "px";
+    const params = new URLSearchParams();
+    params.append("id", id);
+    params.append("start", newStart);
+    params.append("end", newEnd);
+    params.append("date", date);
 
-        // új kezdő és végidő számítása
-        const startMinutes = Math.round(y);
-        const endMinutes = startMinutes + height;
-
-        const startHours = Math.floor(startMinutes / 60);
-        const startMins = startMinutes % 60;
-        const endHours = Math.floor(endMinutes / 60);
-        const endMins = endMinutes % 60;
-
-        const newStart = `${startHours.toString().padStart(2,'0')}:${startMins.toString().padStart(2,'0')}`;
-        const newEnd = `${endHours.toString().padStart(2,'0')}:${endMins.toString().padStart(2,'0')}`;
-
-        // frissítjük a szöveget
-        const lines = draggedEvent.innerHTML.split('<br>');
-        lines[1] = `${newStart} - ${newEnd}`;
-        draggedEvent.innerHTML = lines[0] + '<br>' + lines[1] + `<button class="undo-btn">Vissza</button>`;
-
-        // vissza gomb – mindig az eredeti alaphelyzetre állít
-        const undoBtn = draggedEvent.querySelector('.undo-btn');
-        undoBtn.addEventListener('click', (evt) => {
-            evt.stopPropagation();
-            draggedEvent.style.top = draggedEvent.dataset.originalTop;
-            draggedEvent.style.height = draggedEvent.dataset.originalHeight;
-            draggedEvent.innerHTML = draggedEvent.dataset.originalHTML;
-        });
-
-        // itt lehet AJAX hívás a szerver frissítésére, pl. update_event.php
-        // fetch('update_event.php', { method:'POST', body: JSON.stringify({id: eventId, newStart, newEnd}) })
-    }
-
-    function dragoverHandler(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-    }
-
+    fetch("update_event.php", {
+        method: "POST",
+        body: params
+    })
+        .then(r => r.text())
+        .then(d => console.log("SERVER:", d))
+        .catch(err => console.error(err));
+}
     //DARKMODE
     const darkModeToggle = document.getElementById('darkModeToggle');
     const body = document.body;
