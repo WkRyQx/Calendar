@@ -18,6 +18,15 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+if (isset($_GET['mod'])) {
+    $valasztas = $_GET['mod']; // 'dark' vagy 'light'
+    setcookie("tema", $valasztas, time() + (86400 * 30), "/"); 
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+$stilus = $_COOKIE['tema'] ?? 'light';
+
 $userId = $_SESSION['user_id'];
 
 $success = "";

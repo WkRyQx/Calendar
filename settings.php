@@ -12,7 +12,17 @@ if (!file_exists($langFile)) {
 
 $translations = include $langFile;
 
+
+if (isset($_GET['mod'])) {
+    $valasztas = $_GET['mod']; // 'dark' vagy 'light'
+    setcookie("tema", $valasztas, time() + (86400 * 30), "/"); 
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+$stilus = $_COOKIE['tema'] ?? 'light';
 ?>
+
 
 <!DOCTYPE html>
 <html lang="hu">

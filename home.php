@@ -16,9 +16,24 @@ $error = "";
 try {
     $pdo = new PDO("mysql:host=localhost;dbname=calendar;charset=utf8", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Próbáljuk meg hozzáadni a felhasznalo_id-t a kategóriákhoz, hogy lehessenek saját kategóriák
+    try {
+        $pdo->exec("ALTER TABLE esemeny_kategoria ADD COLUMN felhasznalo_id INT NULL");
+        $pdo->exec("ALTER TABLE esemeny_kategoria ADD FOREIGN KEY (felhasznalo_id) REFERENCES felhasznalo(id) ON DELETE CASCADE");
+    } catch(PDOException $e) {} // Ha már létezik, elkapjuk a hibát némán
 } catch (PDOException $e) {
     die("Hiba az adatbázis kapcsolódáskor: " . $e->getMessage());
 }
+
+if (isset($_GET['mod'])) {
+    $valasztas = $_GET['mod']; // 'dark' vagy 'light'
+    setcookie("tema", $valasztas, time() + (86400 * 30), "/"); 
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+$stilus = $_COOKIE['tema'] ?? 'light';
 
 /* ========================= ESÉNYEK-TEENDŐK MENTÉSE ========================= */
 if (isset($_POST['save_event'])) {
@@ -27,6 +42,23 @@ if (isset($_POST['save_event'])) {
     $kezdet = $_POST['kezdet'] ?? '';
     $vege = $_POST['vege'] ?? '';
     $esemenykat_id = !empty($_POST['esemenykat_id']) ? $_POST['esemenykat_id'] : NULL;
+
+    // Új kategória létrehozása
+    if ($esemenykat_id === 'new' && !empty($_POST['uj_kategoria_nev'])) {
+        $uj_nev = $_POST['uj_kategoria_nev'];
+        $uj_szin = $_POST['uj_kategoria_szin'] ?? '#1a73e8';
+        
+        try {
+            $stmtCat = $pdo->prepare("INSERT INTO esemeny_kategoria (nev, szin, felhasznalo_id) VALUES (?, ?, ?)");
+            $stmtCat->execute([$uj_nev, $uj_szin, $userId]);
+            $esemenykat_id = $pdo->lastInsertId();
+        } catch (PDOException $e) {
+            // Ha a felhasznalo_id valamiért mégsem létezik (régi adatbázis szerkezet)
+            $stmtCat = $pdo->prepare("INSERT INTO esemeny_kategoria (nev, szin) VALUES (?, ?)");
+            $stmtCat->execute([$uj_nev, $uj_szin]);
+            $esemenykat_id = $pdo->lastInsertId();
+        }
+    }
 
     $stmt = $pdo->prepare("INSERT INTO esemeny (nev, leiras, kezdet, vege, esemenykat_id, felhasznalo_id) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$nev, $leiras, $kezdet, $vege, $esemenykat_id, $userId]);
@@ -126,6 +158,17 @@ $stmtIndicators = $pdo->prepare("
 $stmtIndicators->execute([$userId, $userId]);
 $indicatorDates = $stmtIndicators->fetchAll(PDO::FETCH_COLUMN);
 
+// Kategóriák lekérése a modálhoz (Közös és saját)
+try {
+    $stmtCategories = $pdo->prepare("SELECT id, nev FROM esemeny_kategoria WHERE felhasznalo_id IS NULL OR felhasznalo_id = ?");
+    $stmtCategories->execute([$userId]);
+    $categories = $stmtCategories->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Ha a felhasznalo_id oszlop nem létezik
+    $stmtCategories = $pdo->query("SELECT id, nev FROM esemeny_kategoria");
+    $categories = $stmtCategories->fetchAll(PDO::FETCH_ASSOC);
+}
+
 /* ========================= SEGÉDFÜGGVÉNYEK ========================= */
 function timeToMinutes($time) {
     list($h, $m) = explode(':', $time);
@@ -190,9 +233,6 @@ if ($conn->connect_error) {
 die("DB hiba: " . $conn->connect_error);
 }
 
-echo "POST: ";
-print_r($_POST);
-
 $id = $_POST['id'] ?? 0;
 $start = $_POST['start'] ?? '';
 $end = $_POST['end'] ?? '';
@@ -204,13 +244,6 @@ $endFull = $date . " " . $end . ":00";
 $sql = "UPDATE esemeny
 SET kezdet='$startFull', vege='$endFull'
 WHERE id=$id";
-
-if ($conn->query($sql)) {
-echo " | OK | rows: " . $conn->affected_rows;
-} else {
-echo " | ERROR: " . $conn->error;
-}
-
 ?>
 
 <!DOCTYPE html>
@@ -223,7 +256,7 @@ echo " | ERROR: " . $conn->error;
     <link rel="stylesheet" href="main.css">
     <title>Főoldal</title>
 </head>
-<body>
+<body class="<?= isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark' ? 'dark-mode' : '' ?>">
 
 <?php if ($success): ?><div class="msg success"><?= $success ?></div><?php endif; ?>
 <?php if ($error): ?><div class="msg error"><?= $error ?></div><?php endif; ?>
@@ -476,7 +509,9 @@ echo " | ERROR: " . $conn->error;
     const menuBtn = document.getElementById("menuBtn");
     const closeSidebarBtn = document.getElementById("closeSidebarBtn");
 
-    menuBtn.addEventListener("click", () => {
+    // Eseménykezelő gombnyomásra
+    menuBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Megakadályozza, hogy a kattintás továbbterjedjen
         if (window.innerWidth > 1024) {
             sidebar.classList.toggle("close");
         } else {
@@ -484,10 +519,18 @@ echo " | ERROR: " . $conn->error;
         }
     });
 
-    closeSidebarBtn.addEventListener("click", () => {
+    closeSidebarBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         if (window.innerWidth > 1024) {
             sidebar.classList.add("close");
         } else {
+            sidebar.classList.remove("active");
+        }
+    });
+
+    // Ha a menün kívül kattintunk mobilon, csukódjon be az oldalsáv
+    document.addEventListener("click", (e) => {
+        if (window.innerWidth <= 1024 && sidebar.classList.contains("active") && !sidebar.contains(e.target)) {
             sidebar.classList.remove("active");
         }
     });
@@ -501,6 +544,16 @@ echo " | ERROR: " . $conn->error;
         const params = new URLSearchParams(window.location.search);
         params.set('view', view);
         window.history.replaceState({}, '', '?' + params.toString());
+    }
+
+    function toggleNewCategoryField() {
+        const select = document.getElementById('categorySelect');
+        const newCatDiv = document.getElementById('newCategoryDiv');
+        if (select.value === 'new') {
+            newCatDiv.style.display = 'block';
+        } else {
+            newCatDiv.style.display = 'none';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -557,41 +610,41 @@ echo " | ERROR: " . $conn->error;
 
     let draggedEvent = null;
 
-function dragstartHandler(e) {
-    draggedEvent = e.target;
-}
+    function dragstartHandler(e) {
+        draggedEvent = e.target;
+    }
 
-function dragoverHandler(e) {
-    e.preventDefault();
-}
+    function dragoverHandler(e) {
+        e.preventDefault();
+    }
 
-function dropHandler(e) {
-    e.preventDefault();
+    function dropHandler(e) {
+        e.preventDefault();
 
-    if (!draggedEvent) return;
+        if (!draggedEvent) return;
 
-    const id = draggedEvent.dataset.eventId;
-    const date = draggedEvent.dataset.date;
+        const id = draggedEvent.dataset.eventId;
+        const date = draggedEvent.dataset.date;
 
-    console.log("ID:", id, "DATE:", date);
+        console.log("ID:", id, "DATE:", date);
 
-    const newStart = "10:00";
-    const newEnd = "11:00";
+        const newStart = "10:00";
+        const newEnd = "11:00";
 
-    const params = new URLSearchParams();
-    params.append("id", id);
-    params.append("start", newStart);
-    params.append("end", newEnd);
-    params.append("date", date);
+        const params = new URLSearchParams();
+        params.append("id", id);
+        params.append("start", newStart);
+        params.append("end", newEnd);
+        params.append("date", date);
 
-    fetch("update_event.php", {
-        method: "POST",
-        body: params
-    })
-        .then(r => r.text())
-        .then(d => console.log("SERVER:", d))
-        .catch(err => console.error(err));
-}
+        fetch("update_event.php", {
+            method: "POST",
+            body: params
+        })
+            .then(r => r.text())
+            .then(d => console.log("SERVER:", d))
+            .catch(err => console.error(err));
+    }
     //DARKMODE
     const darkModeToggle = document.getElementById('darkModeToggle');
     const body = document.body;
@@ -626,19 +679,49 @@ function dropHandler(e) {
             if(icon) icon.classList.replace('fa-sun', 'fa-moon');
         }
     });
+
+
 </script>
 
 <!-- MODÁLOK -->
 <div id="eventModal" class="custom-modal-overlay">
     <div class="modal-content">
-        <div class="modal-header"><h3>Új esemény</h3><button class="close-modal">&times;</button></div>
+        <div class="modal-header"><h3>Új esemény</h3><button type="button" class="close-modal">&times;</button></div>
         <form method="POST">
             <div class="modal-body">
                 <input type="text" name="nev" placeholder="Esemény neve" required>
                 <textarea name="leiras" placeholder="Leírás"></textarea>
-                <label>Kezdet</label><input type="datetime-local" name="kezdet" required>
-                <label>Vége</label><input type="datetime-local" name="vege">
-                <label>Kategória ID</label><input type="number" name="esemenykat_id">
+                
+                <div class="date-group">
+                    <div class="date-field">
+                        <label>Kezdet</label>
+                        <input type="datetime-local" name="kezdet" required>
+                    </div>
+                    <div class="date-field">
+                        <label>Vége</label>
+                        <input type="datetime-local" name="vege">
+                    </div>
+                </div>
+
+                <label>Kategória</label>
+                <select name="esemenykat_id" id="categorySelect" onchange="toggleNewCategoryField()">
+                    <option value="">-- Nincs kategória --</option>
+                    <option value="new">-- Új kategória létrehozása --</option>
+                    <?php foreach ($categories as $cat): ?>
+                        <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['nev']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <div id="newCategoryDiv" style="display:none; margin-top: 15px; padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color);">
+                    <label>Új kategória neve</label>
+                    <input type="text" name="uj_kategoria_nev" placeholder="Pl.: Születésnap">
+                    
+                    <label style="margin-top: 10px;">Szín</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="color" name="uj_kategoria_szin" value="#1a73e8" style="width: 40px; height: 40px; padding: 0; border: none; border-radius: 5px; cursor: pointer;">
+                        <span style="font-size: 13px; color: var(--muted-text);">Válassz színt az eseménynek</span>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="save-btn" name="save_event">Mentés</button></div>
         </form>
@@ -647,12 +730,16 @@ function dropHandler(e) {
 
 <div id="taskModal" class="custom-modal-overlay">
     <div class="modal-content">
-        <div class="modal-header"><h3>Új teendő</h3><button class="close-modal">&times;</button></div>
+        <div class="modal-header"><h3>Új teendő</h3><button type="button" class="close-modal">&times;</button></div>
         <form method="POST">
             <div class="modal-body">
                 <input type="text" name="nev" placeholder="Feladat neve" required>
                 <textarea name="leiras" placeholder="Leírás"></textarea>
-                <label>Határidő</label><input type="date" name="hatarido">
+                
+                <div class="date-field">
+                    <label>Határidő</label>
+                    <input type="date" name="hatarido">
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="save-btn" name="save_task">Hozzáadás</button></div>
         </form>
