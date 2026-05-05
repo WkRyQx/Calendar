@@ -1,67 +1,90 @@
 body {
-    font-family: Arial, Helvetica, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+:root {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --sidebar-bg: #f4f4f4;
+  --event-bg: #4caf50;
+  --border-color: #ddd;
+  --muted-text: #888;
+  --black-bg: #1a1a1a;
+  --week-color: #000000;
+}
+
+body.dark-mode {
+  --bg-color: #1a1a1a;
+  --text-color: #e0e0e0;
+  --sidebar-bg: #2d2d2d;
+  --event-bg: #2e7d32;
+  --border-color: #444;
+  --muted-text: #666;
 }
 
 .header {
-    border-bottom: 1px solid black;
+  border-bottom: 1px solid black;
 }
 
 i {
-    float: left;
+  float: left;
 }
 
 h2 {
-    margin-left: 25px;
+  margin-left: 25px;
 }
 
 h3 {
-    text-align: center;
+  text-align: center;
 }
 
 .menu {
-    border-radius: 15px;
-    margin: 20px;
-    padding: 20px;
-    background-color: rgb(179, 179, 179);
-    height: 518px;
-    box-shadow: 3px 3px 3px 3px rgba(89, 89, 89, 0.155);
+  border-radius: 15px;
+  margin: 20px;
+  padding: 20px;
+  background-color: var(--muted-text);
+  height: 518px;
+  width: 55.8%;
+  box-shadow: 3px 3px 3px 3px rgba(89, 89, 89, 0.155);
 }
 
 .menu2 {
-    border: 1.5px solid black;
-    border-radius: 15px;
-    background-color: white;
-    box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
-    width: 337px;
-    height: 500px;
-    float: left;
-    margin-right: 20px;
+  border: 1.5px solid black;
+  border-radius: 15px;
+  background-color: var(--bg-color);
+  box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
+  width: 337px;
+  height: 500px;
+  float: left;
+  margin-right: 20px;
 }
 
 .menu2_1 {
-    border: 1.5px solid black;
-    border-radius: 15px;
-    background-color: white;
-    box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
-    width: 337px;
-    height: 500px;
-    float: left;
+  border: 1.5px solid black;
+  border-radius: 15px;
+  background-color: var(--bg-color);
+  box-shadow: 3px 3px 3px 3px rgba(0, 0, 0, 0.155);
+  width: 337px;
+  height: 500px;
+  float: left;
 }
 
 select {
-    padding: 6px;
-    font-size: 16px;
+  padding: 6px;
+  font-size: 16px;
 }
 
 .beltartalom {
-    padding: 15px;
+  padding: 15px;
 }
 
 input {
-    margin-bottom: 5px;
-    width: 300px;
+  margin-bottom: 5px;
+  width: 300px;
 }
 
 #adat_submit {
-    float: right;
+  float: right;
 }
