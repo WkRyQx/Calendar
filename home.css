@@ -13,7 +13,7 @@ html, body {
     font-family: Arial, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
-    transition: 0.5s;
+    transition: background-color 0.5s;
 }
 
 :root {
@@ -53,6 +53,9 @@ body.dark-mode {
     top: 25px;
 }
 
+#darkModeToggle:hover {
+    background: var(--muted-text);
+}
 /* ================= HEADER CONTROLS ================= */
 .header-controls {
     display: flex;
@@ -67,13 +70,7 @@ body.dark-mode {
     z-index: 900;
 }
 
-.left-controls {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.right-controls {
+.left-controls, .right-controls {
     display: flex;
     align-items: center;
     gap: 15px;
@@ -89,26 +86,20 @@ body.dark-mode {
     background: var(--sidebar-bg);
     box-shadow: 2px 0 10px rgba(0,0,0,0.2);
     padding: 20px;
-    z-index: 2000; /* Magasabbra állítva a header-controls felett */
+    z-index: 2000;
     transition: transform 0.3s ease;
 }
 
-#sidebar.close {
-    transform: translateX(-100%);
-}
-
-#sidebar.active {
-    transform: translateX(0);
-}
+#sidebar.close { transform: translateX(-100%); }
+#sidebar.active { transform: translateX(0); }
 
 /* ================= MAIN CONTENT ================= */
 .main-content {
     margin-left: 330px;
-    padding: 15px 20px 5px 20px;
+    padding: 15px 20px;
     height: calc(100vh - 65px);
     overflow-y: auto;
     transition: margin-left 0.3s ease;
-    margin-bottom: 5px;
 }
 
 #sidebar.close ~ .main-content {
@@ -132,6 +123,61 @@ body.dark-mode {
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
+    overflow-x: auto;
+}
+
+.calendar-view h2 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 25px;
+    margin-bottom: 20px;
+    color: var(--text-color);
+    font-size: 1.5rem;
+}
+
+.calendar-view h2 a {
+    text-decoration: none;
+    color: #1a73e8;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.calendar-view h2 a:hover {
+    background: #1a73e8;
+    color: #ffff;
+}
+
+.day-tasks-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.day-tasks-container .task {
+    margin: 0;
+    font-size: 13px;
+    padding: 6px 12px;
+    background: var(--sidebar-bg);
+    border-radius: 20px;
+    border-left: none;
+    border: 1px solid var(--border-color);
+}
+
+.owner-label-inline {
+    font-size: 11px;
+    color: var(--muted-text);
+    margin-left: 5px;
 }
 
 /* ================= DAY VIEW ================= */
@@ -144,11 +190,7 @@ body.dark-mode {
     background: var(--bg-color);
 }
 
-.time-column {
-    width: 70px;
-    border-right: 1px solid var(--border-color);
-}
-
+.time-column { width: 70px; border-right: 1px solid var(--border-color); }
 .time-slot {
     height: 60px;
     font-size: 12px;
@@ -157,17 +199,11 @@ body.dark-mode {
     align-items: center;
     padding-right: 8px;
     color: var(--muted-text);
-}
-
-.calendar-grid {
-    position: relative;
-    flex: 1;
-}
-
-.hour-line {
-    height: 60px;
     border-bottom: 1px solid var(--border-color);
 }
+
+.calendar-grid { position: relative; flex: 1; }
+.hour-line { height: 60px; border-bottom: 1px solid var(--border-color); }
 
 .event {
     position: absolute;
@@ -200,35 +236,38 @@ body.dark-mode {
     border-radius: 50%;
 }
 
-/* ================= WEEK VIEW ================= */
-.week-grid {
+/* ================= GRID VIEWS (WEEK/MONTH) ================= */
+.week-grid, .month-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(140px, 1fr));
     gap: 1px;
-    background: var(--muted-text);
+    background: var(--border-color);
     border: 1px solid var(--border-color);
+    min-width: 980px;
 }
 
-.week-day {
+.week-day, .month-day {
     background: var(--bg-color);
-    min-height: calc(100vh - 250px);
-    padding: 8px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
 }
 
-.week-day-header {
+.week-day { min-height: calc(100vh - 250px); }
+.month-day { height: 140px; }
+.month-day.other-month { background: var(--sidebar-bg); color: var(--muted-text); }
+
+.week-day-header, .month-day-number {
     text-align: center;
-    padding-bottom: 5px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 5px;
+    margin-bottom: 10px;
+    font-size: 14px;
 }
 
-.week-day-num.today {
-    background: #1a73e8;
-    color: var(--bg-color);
-    width: 24px;
-    height: 24px;
+.week-day-num.today, .month-day-number.today {
+    background: var(--accent-color);
+    color: #fff;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -237,30 +276,35 @@ body.dark-mode {
 
 .week-event {
     font-size: 11px;
-    padding: 2px 5px;
-    margin-bottom: 2px;
-    border-radius: 3px;
-    color: var(--bg-color);
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: ellipsis; /* Levágás, ha nem fér bele */
+    max-width: 100%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* ================= MONTH VIEW ================= */
 .month-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(140px, 1fr)); /* Fix minimum szélesség */
     gap: 1px;
-    background: var(--muted-text);
+    background: var(--border-color);
     border: 1px solid var(--border-color);
+    width: 100%;
+    min-width: 980px; /* 7 * 140px */
 }
 
 .month-day {
     background: var(--bg-color);
-    height: 120px;
-    padding: 5px;
+    height: 140px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
+    width: 100%;
 }
 
 .month-day.other-month {
@@ -285,14 +329,16 @@ body.dark-mode {
 }
 
 .month-event {
-    color: var(--bg-color);
-    padding: 2px 5px;
-    margin-bottom: 2px;
-    border-radius: 3px;
+    color: #ffffff;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-radius: 4px;
     font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* ================= MINI CALENDAR ================= */
@@ -303,32 +349,36 @@ body.dark-mode {
 }
 
 .calendar h2 {
-    font-size: 15px;
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: 600;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding: 0 5px;
+    margin-bottom: 20px;
+    padding: 0 10px;
     color: var(--text-color);
+    border-radius: 8px;
+    padding: 5px 10px;
 }
 
 .calendar h2 a {
     text-decoration: none;
-    color: var(--muted-text);
-    font-size: 20px;
-    width: 30px;
-    height: 30px;
+    color: #1a73e8;
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    border: 1px solid transparent;
 }
 
 .calendar h2 a:hover {
-    background: var(--muted-text);
-    color: var(--bg-color);
+    background: var(--sidebar-bg);
+    border-color: var(--border-color);
+    color: #1a73e8;
 }
 
 .weekdays {
@@ -369,7 +419,7 @@ body.dark-mode {
 }
 
 .day:hover {
-    background: var(--muted-text);
+    background: #acacac;
 }
 
 .day.muted {
@@ -383,7 +433,7 @@ body.dark-mode {
 }
 
 .day.selected {
-    background: var(--muted-text);
+    background: #acacac;
     color: #1a73e8;
 }
 
@@ -409,6 +459,71 @@ body.dark-mode {
 
 .day.today.selected .event-dot {
     background: var(--bg-color);
+}
+
+/* ================= SIDEBAR ACTIONS ================= */
+.sidebar-actions {
+    margin-top: 20px;
+    padding: 0 5px;
+}
+
+.sidebar-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.sidebar-btn:hover {
+    background: #1a73e8;
+    color: #ffffff;
+    border-color: #1a73e8;
+}
+
+.sidebar-btn i {
+    font-size: 16px;
+}
+
+/* ================= OWNER LABELS ================= */
+.owner-label {
+    font-size: 10px;
+    background: rgba(0,0,0,0.1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-top: 5px;
+    font-style: italic;
+    color: #ffffff;
+}
+
+.owner-label-small {
+    font-size: 9px;
+    opacity: 0.9;
+    margin-top: 2px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 2px;
+}
+
+.owner-initial {
+    font-weight: bold;
+    font-size: 10px;
+    margin-left: 3px;
+    opacity: 0.8;
+}
+
+.other-member {
+    position: relative;
+    border: 1px dashed rgba(255,255,255,0.5);
 }
 
 /* ================= DROPDOWNS ================= */
@@ -456,7 +571,7 @@ body.dark-mode {
     z-index: 1001;
 }
 
-.dropdown2.active .option, .dropdown3.active .option, .dropdown.active .option {
+.dropdown2.active .option, .dropdown3.active .option, .dropdown.active .option, .dropdown4.active .option {
     background: var(--bg-color);
     display: block;
 }
@@ -469,14 +584,17 @@ body.dark-mode {
 .option div:hover {
     background: var(--muted-text);
 }
+.dropdown4 .option div:hover {
+    background: none;
+}
 
 /* ================= SIDEBAR DROPDOWN ================= */
-.dropdown {
+.dropdown ,.dropdown4 {
     position: relative;
     margin-bottom: 20px;
 }
 
-.dropdown .textBox {
+.dropdown .textBox ,.dropdown4 .textBox {
     width: 100%;
     height: 48px;
     border-radius: 24px;
@@ -487,10 +605,57 @@ body.dark-mode {
     color: var(--text-color);
 }
 
-.dropdown i {
+.dropdown i ,.dropdown4 i {
     position: absolute;
     left: 18px;
     top: 16px;
+}
+
+.dropdown4{
+    margin-top: 25px;
+}
+
+.dropdown4.active .option , .dropdown.active .option{
+    width: 100%;
+}
+
+/* ================= GROUPS LIST IN DROPDOWN ================= */
+.groups-list {
+    padding: 5px 0;
+}
+
+.group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 15px;
+    width: 100%;
+    background: transparent !important;
+    cursor: default;
+}
+
+.group-item span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    color: var(--text-color);
+    text-align: left;
+}
+
+.edit-group {
+    color: var(--muted-text);
+    cursor: pointer;
+    font-size: 16px;
+    transition: color 0.2s, transform 0.2s;
+    flex-shrink: 0;
+}
+
+.edit-group:hover {
+    color: #1a73e8;
+    transform: scale(1.1);
 }
 
 /* ================= MODAL ================= */
@@ -631,6 +796,52 @@ body.dark-mode {
     background: #1557b0;
 }
 
+.delete-btn {
+    background: #ea4335;
+    color: #ffffff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.delete-btn:hover {
+    background: #d32f2f;
+}
+
+.group-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.members-list-edit {
+    max-height: 150px;
+    overflow-y: auto;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.member-edit-item {
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.member-edit-item:last-child {
+    border-bottom: none;
+}
+
+.member-edit-item input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
 /* ================= PROFIL ================= */
 .profile-icon {
     width: 40px;
@@ -655,11 +866,16 @@ body.dark-mode {
 .task {
     background: var(--bg-color);
     color: #1a73e8;
-    padding: 5px 10px;
-    margin: 5px;
-    border-radius: 4px;
-    font-size: 12px;
-    border-left: 3px solid #1a73e8;
+    padding: 8px 12px;
+    margin: 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    border-left: 4px solid #1a73e8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    white-space: nowrap;
+    overflow: hidden;
+    border: #000000 solid 1px;
+    text-overflow: ellipsis;
 }
 
 /* ================= RESPONSIVE ================= */
@@ -675,6 +891,13 @@ body.dark-mode {
     .main-content {
         margin-left: 0 !important;
         width: 100%;
+        padding: 10px;
+    }
+
+    /* Görgethető naptár nézet mobilon */
+    .calendar-view {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 

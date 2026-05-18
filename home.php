@@ -3,6 +3,28 @@
 session_start();
 date_default_timezone_set('Europe/Budapest');
 
+// AJAX kérés kezelése a csoporttagokhoz
+if (isset($_GET['ajax_action']) && $_GET['ajax_action'] === 'get_group_members') {
+    if (!isset($_SESSION['user_id'])) {
+        exit(json_encode(['error' => 'Unauthorized']));
+    }
+    try {
+        $pdo_ajax = new PDO("mysql:host=localhost;dbname=calendar;charset=utf8", "root", "");
+        $gId = $_GET['group_id'] ?? 0;
+        $stmt = $pdo_ajax->prepare("
+            SELECT f.id, f.nev, f.email 
+            FROM felhasznalo f
+            INNER JOIN csoport_tag ct ON f.id = ct.felhasznalo_id
+            WHERE ct.csoport_id = ?
+        ");
+        $stmt->execute([$gId]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    } catch (Exception $e) {
+        echo json_encode(['error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: log-reg.php");
     exit();
@@ -80,6 +102,113 @@ if (isset($_POST['save_task'])) {
     exit();
 }
 
+if (isset($_POST['save_group'])) {
+    $nev = $_POST['csoport_nev'] ?? '';
+    $tagok_email = $_POST['tagok_email'] ?? '';
+
+    if (!empty($nev)) {
+        try {
+            $pdo->beginTransaction();
+            
+            // Csoport létrehozása
+            $stmt = $pdo->prepare("INSERT INTO csoport (nev) VALUES (?)");
+            $stmt->execute([$nev]);
+            $groupId = $pdo->lastInsertId();
+
+            // Létrehozó hozzáadása
+            $stmtTag = $pdo->prepare("INSERT INTO csoport_tag (csoport_id, felhasznalo_id) VALUES (?, ?)");
+            $stmtTag->execute([$groupId, $userId]);
+
+            // További tagok hozzáadása email alapján
+            if (!empty($tagok_email)) {
+                $emails = array_map('trim', explode(',', $tagok_email));
+                $stmtFindUser = $pdo->prepare("SELECT id FROM felhasznalo WHERE email = ?");
+                foreach ($emails as $email) {
+                    if ($email == $_SESSION['user_email'] ?? '') continue; // Saját magát már hozzáadtuk
+                    
+                    $stmtFindUser->execute([$email]);
+                    $targetUser = $stmtFindUser->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($targetUser) {
+                        $stmtTag->execute([$groupId, $targetUser['id']]);
+                    }
+                }
+            }
+
+            $pdo->commit();
+            $success = "Csoport sikeresen létrehozva!";
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $error = "Hiba a csoport létrehozásakor: " . $e->getMessage();
+        }
+    }
+}
+
+if (isset($_POST['edit_group'])) {
+    $groupId = $_POST['csoport_id'] ?? 0;
+    $nev = $_POST['csoport_nev'] ?? '';
+    $tagok_email = $_POST['tagok_email'] ?? '';
+    $eltavolit_tagok = $_POST['eltavolit_tagok'] ?? [];
+
+    if ($groupId > 0 && !empty($nev)) {
+        try {
+            $pdo->beginTransaction();
+            
+            // Csoport név frissítése
+            $stmt = $pdo->prepare("UPDATE csoport SET nev = ? WHERE id = ?");
+            $stmt->execute([$nev, $groupId]);
+
+            // Tagok eltávolítása
+            if (!empty($eltavolit_tagok)) {
+                $stmtRemove = $pdo->prepare("DELETE FROM csoport_tag WHERE csoport_id = ? AND felhasznalo_id = ?");
+                foreach ($eltavolit_tagok as $uId) {
+                    if ($uId == $userId) continue; // Saját magát ne tudja eltávolítani (vagy igény szerint igen)
+                    $stmtRemove->execute([$groupId, $uId]);
+                }
+            }
+
+            // Új tagok hozzáadása
+            if (!empty($tagok_email)) {
+                $emails = array_map('trim', explode(',', $tagok_email));
+                $stmtFindUser = $pdo->prepare("SELECT id FROM felhasznalo WHERE email = ?");
+                $stmtCheckTag = $pdo->prepare("SELECT 1 FROM csoport_tag WHERE csoport_id = ? AND felhasznalo_id = ?");
+                $stmtTag = $pdo->prepare("INSERT INTO csoport_tag (csoport_id, felhasznalo_id) VALUES (?, ?)");
+                
+                foreach ($emails as $email) {
+                    $stmtFindUser->execute([$email]);
+                    $targetUser = $stmtFindUser->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($targetUser) {
+                        $stmtCheckTag->execute([$groupId, $targetUser['id']]);
+                        if (!$stmtCheckTag->fetch()) {
+                            $stmtTag->execute([$groupId, $targetUser['id']]);
+                        }
+                    }
+                }
+            }
+
+            $pdo->commit();
+            $success = "Csoport sikeresen frissítve!";
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $error = "Hiba a csoport szerkesztésekor: " . $e->getMessage();
+        }
+    }
+}
+
+if (isset($_POST['delete_group'])) {
+    $groupId = $_POST['csoport_id'] ?? 0;
+    if ($groupId > 0) {
+        try {
+            $stmt = $pdo->prepare("DELETE FROM csoport WHERE id = ?");
+            $stmt->execute([$groupId]);
+            $success = "Csoport sikeresen törölve!";
+        } catch (Exception $e) {
+            $error = "Hiba a csoport törlésekor: " . $e->getMessage();
+        }
+    }
+}
+
 /* ========================= DÁTUM KEZELÉS ========================= */
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 $view = $_GET['view'] ?? 'month';
@@ -99,54 +228,73 @@ $monthName = $year . '  ' . $honapok[$month];
 /* ========================= ADATOK LEKÉRÉSE ========================= */
 
 // Felhasználó adatai (profilkép + név ha nincs sessionben)
-$stmtUser = $pdo->prepare("SELECT profilkep, nev FROM felhasznalo WHERE id = ?");
+$stmtUser = $pdo->prepare("SELECT profilkep, nev, email FROM felhasznalo WHERE id = ?");
 $stmtUser->execute([$userId]);
 $userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
 $profilkep = $userData['profilkep'] ?? null;
 if (!isset($_SESSION['user_name'])) {
     $_SESSION['user_name'] = $userData['nev'] ?? 'User';
 }
+if (!isset($_SESSION['user_email'])) {
+    $_SESSION['user_email'] = $userData['email'] ?? '';
+}
 
-// Események lekérése a kiválasztott napra (Nap nézet)
+// Események lekérése a kiválasztott napra (Nap nézet + Csoporttagok)
 $stmtEvents = $pdo->prepare("
-    SELECT e.nev, e.leiras, e.kezdet, e.vege, k.szin
+    SELECT e.id, e.nev, e.leiras, e.kezdet, e.vege, k.szin, f.nev as tulajdonos, e.felhasznalo_id
     FROM esemeny e
     LEFT JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-    WHERE DATE(e.kezdet) = ? AND e.felhasznalo_id = ?
+    INNER JOIN felhasznalo f ON e.felhasznalo_id = f.id
+    WHERE DATE(e.kezdet) = ? AND (e.felhasznalo_id = ? OR e.felhasznalo_id IN (
+        SELECT DISTINCT felhasznalo_id FROM csoport_tag WHERE csoport_id IN (SELECT csoport_id FROM csoport_tag WHERE felhasznalo_id = ?)
+    ))
     ORDER BY e.kezdet
 ");
-$stmtEvents->execute([$selectedDate, $userId]);
+$stmtEvents->execute([$selectedDate, $userId, $userId]);
 $events = $stmtEvents->fetchAll(PDO::FETCH_ASSOC);
 
-// Teendők lekérése a kiválasztott napra
-$stmtTasks = $pdo->prepare("SELECT * FROM teendo WHERE DATE(hatarido) = ? AND felhasznalo_id = ?");
-$stmtTasks->execute([$selectedDate, $userId]);
+// Teendők lekérése a kiválasztott napra (+ Csoporttagok)
+$stmtTasks = $pdo->prepare("
+    SELECT t.id, t.nev, t.leiras, t.hatarido, t.kesz, t.felhasznalo_id, f.nev as tulajdonos 
+    FROM teendo t
+    INNER JOIN felhasznalo f ON t.felhasznalo_id = f.id
+    WHERE DATE(t.hatarido) = ? AND (t.felhasznalo_id = ? OR t.felhasznalo_id IN (
+        SELECT DISTINCT felhasznalo_id FROM csoport_tag WHERE csoport_id IN (SELECT csoport_id FROM csoport_tag WHERE felhasznalo_id = ?)
+    ))
+");
+$stmtTasks->execute([$selectedDate, $userId, $userId]);
 $tasks = $stmtTasks->fetchAll(PDO::FETCH_ASSOC);
 
-// Heti nézet adatai
+// Heti nézet adatai (+ Csoporttagok)
 $weekStart = date('Y-m-d', strtotime('monday this week', strtotime($selectedDate)));
 $weekEnd   = date('Y-m-d', strtotime('sunday this week', strtotime($selectedDate)));
 $stmtWeek = $pdo->prepare("
-    SELECT e.*, k.szin 
+    SELECT e.*, k.szin, f.nev as tulajdonos, e.felhasznalo_id
     FROM esemeny e
     INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
+    INNER JOIN felhasznalo f ON e.felhasznalo_id = f.id
+    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND (e.felhasznalo_id = ? OR e.felhasznalo_id IN (
+        SELECT DISTINCT felhasznalo_id FROM csoport_tag WHERE csoport_id IN (SELECT csoport_id FROM csoport_tag WHERE felhasznalo_id = ?)
+    ))
     ORDER BY e.kezdet
 ");
-$stmtWeek->execute([$weekStart, $weekEnd, $userId]);
+$stmtWeek->execute([$weekStart, $weekEnd, $userId, $userId]);
 $weekEvents = $stmtWeek->fetchAll(PDO::FETCH_ASSOC);
 
-// Havi nézet adatai
+// Havi nézet adatai (+ Csoporttagok)
 $monthStart = "$year-" . sprintf("%02d", $month) . "-01";
 $monthEnd = date('Y-m-t', strtotime($monthStart));
 $stmtMonth = $pdo->prepare("
-    SELECT e.*, k.szin 
+    SELECT e.*, k.szin, f.nev as tulajdonos, e.felhasznalo_id
     FROM esemeny e
     INNER JOIN esemeny_kategoria k ON e.esemenykat_id = k.id
-    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND e.felhasznalo_id = ?
+    INNER JOIN felhasznalo f ON e.felhasznalo_id = f.id
+    WHERE DATE(e.kezdet) BETWEEN ? AND ? AND (e.felhasznalo_id = ? OR e.felhasznalo_id IN (
+        SELECT DISTINCT felhasznalo_id FROM csoport_tag WHERE csoport_id IN (SELECT csoport_id FROM csoport_tag WHERE felhasznalo_id = ?)
+    ))
     ORDER BY e.kezdet
 ");
-$stmtMonth->execute([$monthStart, $monthEnd, $userId]);
+$stmtMonth->execute([$monthStart, $monthEnd, $userId, $userId]);
 $monthEvents = $stmtMonth->fetchAll(PDO::FETCH_ASSOC);
 
 // Mini-naptár indikátorok (minden nap, ahol van esemény vagy teendő)
@@ -157,6 +305,16 @@ $stmtIndicators = $pdo->prepare("
 ");
 $stmtIndicators->execute([$userId, $userId]);
 $indicatorDates = $stmtIndicators->fetchAll(PDO::FETCH_COLUMN);
+
+// Felhasználó csoportjainak lekérése
+$stmtUserGroups = $pdo->prepare("
+    SELECT cs.id, cs.nev 
+    FROM csoport cs
+    INNER JOIN csoport_tag cst ON cs.id = cst.csoport_id
+    WHERE cst.felhasznalo_id = ?
+");
+$stmtUserGroups->execute([$userId]);
+$userGroups = $stmtUserGroups->fetchAll(PDO::FETCH_ASSOC);
 
 // Kategóriák lekérése a modálhoz (Közös és saját)
 try {
@@ -316,6 +474,7 @@ WHERE id=$id";
         <div class="option">
             <div>Esemény</div>
             <div>Teendő</div>
+            <div>Csoport</div>
         </div>
     </div>
 
@@ -375,9 +534,28 @@ WHERE id=$id";
             ?>
         </div>
     </div>
+
+    <div class="sidebar-actions">
+        <div class="dropdown4">
+        <i class="fa-solid fa-user-group"></i>
+        <div class="textBox">Csoportok</div>
+        <div class="option">
+                <?php if (empty($userGroups)): ?>
+                    <p class="empty-msg">Még nem tartozol csoporthoz.</p>
+                <?php else: ?>
+                    <div class="groups-list">
+                        <?php foreach ($userGroups as $group): ?>
+                           <div class="group-item">
+                               <span><?= htmlspecialchars($group['nev']) ?></span>
+                               <i class="fa-solid fa-pen edit-group" data-id="<?= $group['id'] ?>" data-name="<?= htmlspecialchars($group['nev']) ?>"></i>
+                           </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+        </div>
+        </div>
+    </div>
 </div>
-
-
 </div>
 
 <div class="main-content">
@@ -396,30 +574,44 @@ WHERE id=$id";
                 <?= $dayName ?> <?= $dayNum ?>
                 <a href="?date=<?= $nextDate ?>&view=day">&raquo;</a>
             </h2>
+
+            <div class="day-tasks-container">
+                <?php foreach ($tasks as $task): 
+                    $isOther = ($task['felhasznalo_id'] != $userId);
+                ?>
+                    <div class="task <?= $isOther ? 'other-member' : '' ?>">
+                        ✔ <?= htmlspecialchars($task['nev']) ?>
+                        <?php if ($isOther): ?>
+                            <span class="owner-label-inline">(👤 <?= htmlspecialchars($task['tulajdonos']) ?>)</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
             <div class="day-view">
                 <div class="time-column">
                     <?php for ($h=0; $h<24; $h++) echo "<div class='time-slot'><span>" . sprintf("%02d:00", $h) . "</span></div>"; ?>
                 </div>
                 <div class="calendar-grid">
                     <?php for ($h=0; $h<24; $h++) echo "<div class='hour-line'></div>"; ?>
-                    <?php if ($selectedDate === date('Y-m-d')): ?>
-                        <div class="current-time" style="top: <?= date('G')*60 + date('i') ?>px;"></div>
-                    <?php endif; ?>
-
+                    
                     <?php foreach ($events as $event): 
                         $top = $event['startMin'];
                         $height = $event['endMin'] - $event['startMin'];
                         $width = 100 / $event['totalColumns'];
                         $left = $event['column'] * $width;
+                        $isOther = ($event['felhasznalo_id'] != $userId);
                     ?>
-                        <div class="event" style="top:<?= $top ?>px; height:<?= $height ?>px; width:<?= $width ?>%; left:<?= $left ?>%; background: <?= $event['szin'] ?? '#4caf50' ?>;">
-                            <?= htmlspecialchars($event['nev']) ?><br><?= $event['start'] ?> - <?= $event['end'] ?>
+                        <div class="event <?= $isOther ? 'other-member' : '' ?>" style="top:<?= $top ?>px; height:<?= $height ?>px; width:<?= $width ?>%; left:<?= $left ?>%; background: <?= $event['szin'] ?? '#4caf50' ?>;">
+                            <strong><?= htmlspecialchars($event['nev']) ?></strong><br>
+                            <?= $event['start'] ?> - <?= $event['end'] ?>
+                            <?php if ($isOther): ?>
+                                <div class="owner-label">👤 <?= htmlspecialchars($event['tulajdonos']) ?></div>
+                            <?php endif; ?>
                         </div> 
                     <?php endforeach; ?>
                     
-                    <?php foreach ($tasks as $task): ?>
-                        <div class="task">✔ <?= htmlspecialchars($task['nev']) ?><br>📅 <?= $task['hatarido'] ?></div>
-                    <?php endforeach; ?>
+                    <div class="current-time" id="currentTimeIndicator"></div>
                 </div>
             </div>
         </div>
@@ -449,8 +641,15 @@ WHERE id=$id";
                         foreach ($weekEvents as $we):
                             if (date('Y-m-d', strtotime($we['kezdet'])) == $curr):
                                 if (++$count > 4) { echo "<div class='week-event'>+ több...</div>"; break; }
+                                $isOther = ($we['felhasznalo_id'] != $userId);
                         ?>
-                            <div class="week-event" style="background:<?= $we['szin'] ?>;"><?= htmlspecialchars($we['nev']) ?><br><?= date('H:i', strtotime($we['kezdet'])) ?></div>
+                            <div class="week-event <?= $isOther ? 'other-member' : '' ?>" style="background:<?= $we['szin'] ?>;">
+                                <?= htmlspecialchars($we['nev']) ?><br>
+                                <?= date('H:i', strtotime($we['kezdet'])) ?>
+                                <?php if ($isOther): ?>
+                                    <div class="owner-label-small"><?= htmlspecialchars($we['tulajdonos']) ?></div>
+                                <?php endif; ?>
+                            </div>
                         <?php endif; endforeach; ?>
                     </div>
                 <?php endfor; ?>
@@ -484,8 +683,15 @@ WHERE id=$id";
                 ?>
                     <div class="month-day<?= $cls ?>" data-date="<?= $curr ?>">
                         <div class="month-day-number<?= $cls ?>"><?= $day ?></div>
-                        <?php foreach ($monthEvents as $me): if (date('Y-m-d', strtotime($me['kezdet'])) == $curr): ?>
-                            <div class="month-event" style="background:<?= $me['szin'] ?>;"><?= htmlspecialchars($me['nev']) ?></div>
+                        <?php foreach ($monthEvents as $me): if (date('Y-m-d', strtotime($me['kezdet'])) == $curr): 
+                            $isOther = ($me['felhasznalo_id'] != $userId);
+                        ?>
+                            <div class="month-event <?= $isOther ? 'other-member' : '' ?>" style="background:<?= $me['szin'] ?>;">
+                                <?= htmlspecialchars($me['nev']) ?>
+                                <?php if ($isOther): ?>
+                                    <span class="owner-initial" title="<?= htmlspecialchars($me['tulajdonos']) ?>">(<?= mb_substr($me['tulajdonos'], 0, 1) ?>)</span>
+                                <?php endif; ?>
+                            </div>
                         <?php endif; endforeach; ?>
                     </div>
                 <?php endfor; ?>
@@ -576,12 +782,20 @@ WHERE id=$id";
         });
 
         // Dropdownok
-        document.querySelectorAll('.dropdown, .dropdown2, .dropdown3').forEach(dropdown => {
+        document.querySelectorAll('.dropdown, .dropdown2, .dropdown3, .dropdown4').forEach((dropdown, index) => {
+            // Visszaállítás betöltéskor
+            const isOpen = localStorage.getItem(`dropdown_${index}`) === 'true';
+            if (isOpen) dropdown.classList.add('active');
+
             dropdown.addEventListener('click', (e) => {
+                // Ha az opciókra vagy a szerkesztés gombra kattintunk, ne csukódjon be
+                if (e.target.closest('.option') || e.target.closest('.edit-group')) return;
+                
                 e.stopPropagation();
-                if (e.target.closest('.option')) return;
-                document.querySelectorAll('.dropdown, .dropdown2, .dropdown3').forEach(d => { if(d !== dropdown) d.classList.remove('active'); });
                 dropdown.classList.toggle('active');
+                
+                // Állapot mentése
+                localStorage.setItem(`dropdown_${index}`, dropdown.classList.contains('active'));
             });
             dropdown.querySelectorAll('.option div').forEach(opt => {
                 opt.addEventListener('click', (e) => {
@@ -590,15 +804,96 @@ WHERE id=$id";
                 });
             });
         });
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.active').forEach(d => d.classList.remove('active'));
-            // sidebar.classList.remove("active"); // Don't close sidebar on every click
+
+        // Csak a Létrehozás dropdownok (dropdown, dropdown2) csukódjanak be külső kattintásra
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.dropdown, .dropdown2 , .dropdown3, .dropdown4').forEach((d) => {
+                const allDropdowns = Array.from(document.querySelectorAll('.dropdown, .dropdown2, .dropdown3, .dropdown4'));
+                const globalIndex = allDropdowns.indexOf(d);
+
+                if (!d.contains(e.target) && d.classList.contains('active')) {
+                    d.classList.remove('active');
+                    if (globalIndex !== -1) {
+                        localStorage.setItem(`dropdown_${globalIndex}`, 'false');
+                    }
+                }
+            });
         });
 
         // Modálok
-        const modals = { "Esemény": document.getElementById('eventModal'), "Teendő": document.getElementById('taskModal') };
+        const modals = { 
+            "Esemény": document.getElementById('eventModal'), 
+            "Teendő": document.getElementById('taskModal'),
+            "Csoport": document.getElementById('groupModal'),
+            "editGroup": document.getElementById('editGroupModal')
+        };
+        
+        // Csoport adatok betöltése funkció
+        window.loadGroupData = function(id) {
+            const selector = document.getElementById('edit_csoport_selector');
+            const nameInput = document.getElementById('edit_csoport_nev');
+            const membersList = document.getElementById('currentMembersList');
+            
+            // Név beállítása a kiválasztott opció alapján
+            const selectedOption = selector.querySelector(`option[value="${id}"]`);
+            if (selectedOption) {
+                nameInput.value = selectedOption.innerText;
+            }
+
+            membersList.innerHTML = 'Betöltés...';
+            
+            fetch(`home.php?ajax_action=get_group_members&group_id=${id}`)
+                .then(response => response.json())
+                .then(members => {
+                    membersList.innerHTML = '';
+                    members.forEach(member => {
+                        const div = document.createElement('div');
+                        div.className = 'member-edit-item';
+                        div.innerHTML = `
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: normal; margin-bottom: 0;">
+                                <input type="checkbox" name="eltavolit_tagok[]" value="${member.id}">
+                                <span>${member.nev} (${member.email})</span>
+                            </label>
+                        `;
+                        membersList.appendChild(div);
+                    });
+                })
+                .catch(err => {
+                    membersList.innerHTML = 'Hiba a tagok betöltésekor.';
+                    console.error(err);
+                });
+        };
+
+        // Csoport szerkesztés ikonok kezelése
+        function initEditGroupIcons() {
+            // Eseménydelegálás a hatékonyabb működésért
+            document.addEventListener('click', (e) => {
+                const icon = e.target.closest('.edit-group');
+                if (icon) {
+                    e.stopPropagation();
+                    const id = icon.dataset.id;
+                    
+                    // Kiválasztjuk a helyes csoportot a legördülőben
+                    const selector = document.getElementById('edit_csoport_selector');
+                    selector.value = id;
+                    
+                    // Adatok betöltése
+                    loadGroupData(id);
+
+                    modals.editGroup.style.display = 'block';
+                    if(document.querySelector('.dropdown4')) document.querySelector('.dropdown4').classList.remove('active');
+                }
+            });
+        }
+        initEditGroupIcons();
+
         document.querySelectorAll('.option div').forEach(opt => {
-            opt.onclick = () => { if (modals[opt.innerText.trim()]) modals[opt.innerText.trim()].style.display = 'block'; };
+            opt.onclick = () => { 
+                const text = opt.innerText.trim();
+                if (modals[text]) {
+                    modals[text].style.display = 'block';
+                }
+            };
         });
         document.querySelectorAll('.close-modal').forEach(btn => {
             btn.onclick = () => document.querySelectorAll('.custom-modal-overlay').forEach(m => m.style.display = 'none');
@@ -679,8 +974,6 @@ WHERE id=$id";
             if(icon) icon.classList.replace('fa-sun', 'fa-moon');
         }
     });
-
-
 </script>
 
 <!-- MODÁLOK -->
@@ -742,6 +1035,52 @@ WHERE id=$id";
                 </div>
             </div>
             <div class="modal-footer"><button type="submit" class="save-btn" name="save_task">Hozzáadás</button></div>
+        </form>
+    </div>
+</div>
+
+<div id="groupModal" class="custom-modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Csoport létrehozása</h3><button type="button" class="close-modal">&times;</button></div>
+        <form method="POST">
+            <div class="modal-body">
+                <label>Csoport neve</label>
+                <input type="text" name="csoport_nev" placeholder="Pl.: Projekt Csapat" required>
+                
+                <label>Tagok hozzáadása (Email címek, vesszővel elválasztva)</label>
+                <textarea name="tagok_email" placeholder="pelda1@gmail.com, pelda2@gmail.com"></textarea>
+                <small style="color: var(--muted-text); font-size: 11px;">Csak regisztrált felhasználókat tudsz hozzáadni.</small>
+            </div>
+            <div class="modal-footer"><button type="submit" class="save-btn" name="save_group">Létrehozás</button></div>
+        </form>
+    </div>
+</div>
+<div id="editGroupModal" class="custom-modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Csoport szerkesztése</h3><button type="button" class="close-modal">&times;</button></div>
+        <form method="POST" id="editGroupForm">
+            <div class="modal-body">
+                <label>Válaszd ki a szerkeszteni kívánt csoportot</label>
+                <select name="csoport_id" id="edit_csoport_selector" onchange="loadGroupData(this.value)">
+                    <?php foreach ($userGroups as $group): ?>
+                        <option value="<?= $group['id'] ?>"><?= htmlspecialchars($group['nev']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <label>Csoport neve</label>
+                <input type="text" name="csoport_nev" id="edit_csoport_nev" required>
+                
+                <label>Jelenlegi tagok eltávolítása</label>
+                <div id="currentMembersList" class="members-list-edit">
+                </div>
+
+                <label>Új tagok hozzáadása (Email címek, vesszővel elválasztva)</label>
+                <textarea name="tagok_email" placeholder="pelda3@gmail.com, pelda4@gmail.com"></textarea>
+            </div>
+            <div class="modal-footer group-modal-footer">
+                <button type="submit" name="delete_group" class="delete-btn" onclick="return confirm('Biztosan törölni szeretnéd a csoportot?')">Csoport törlése</button>
+                <button type="submit" class="save-btn" name="edit_group">Mentés</button>
+            </div>
         </form>
     </div>
 </div>
