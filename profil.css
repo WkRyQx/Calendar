@@ -1,6 +1,26 @@
 body {
   font-family: Arial, Helvetica, sans-serif;
-  background-color: rgb(233, 236, 238);
+  background-color: var(--bg-color);
+}
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --sidebar-bg: #f4f4f4;
+    --event-bg: #4caf50;    
+    --border-color: #ddd;
+    --muted-text: #888;
+    --black-bg:#1a1a1a;
+    --week-color:#000000;
+}
+
+body.dark-mode {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --sidebar-bg: #2d2d2d;
+    --event-bg: #2e7d32;
+    --border-color: #444;
+    --muted-text: #666;
 }
 
 .menupont {
@@ -31,7 +51,7 @@ body {
 }
 .menupontDiv {
   display: flex;
-  background-color: white;
+  background-color: var(--bg-color);
   align-items: center;
   width: 120px;
   height: 50px;
@@ -53,7 +73,7 @@ span {
 a {
   height: 50px;
   text-decoration: none;
-  color: black;
+  color: var(--text-color);
 }
 
 i {
@@ -63,5 +83,16 @@ i {
   padding-right: 5px;
 }
 .menupontDiv:hover{
-  background-color: darkgrey;
+  background-color: var(--muted-text);
+}
+
+span{
+  color: var(--text-color);
+}
+
+#profile-icon{
+  width: 200px;
+  height: 200px;
+  border: 1px solid black;
+  border-radius: 100%;
 }

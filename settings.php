@@ -33,7 +33,6 @@ $stilus = $_COOKIE['tema'] ?? 'light';
     <title>Beállítások</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <link rel="stylesheet" href="settings.css">
-    <script src="settings.js" defer></script>
 </head>
 
 <body class="<?= isset($_COOKIE['theme']) && $_COOKIE['theme'] === 'dark' ? 'dark-mode' : '' ?>">
@@ -134,8 +133,6 @@ $stilus = $_COOKIE['tema'] ?? 'light';
             }).then(() => location.reload());
         });
     </script>
-
-
 
 </body>
 
